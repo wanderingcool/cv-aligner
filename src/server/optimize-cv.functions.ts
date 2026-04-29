@@ -1,59 +1,117 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const InputSchema = z.object({
-  cv: z.string().trim().min(50, "CV is too short").max(20000, "CV is too long"),
-  jobDescription: z.string().trim().min(50, "Job description is too short").max(20000, "Job description is too long"),
+const FileSchema = z.object({
+  base64: z.string().min(1),
+  mimeType: z.string().min(1),
+  name: z.string().optional(),
 });
 
-const SYSTEM_PROMPT = `You are an elite career marketing strategist and CV writer. Your job is to rewrite a candidate's CV so it is precision-aligned to a specific Job Description (JD), as if marketing a premium product to a specific buyer.
+const InputSchema = z.object({
+  cvText: z.string().trim().max(30000).optional(),
+  cvFile: FileSchema.optional(),
+  jdText: z.string().trim().max(30000).optional(),
+  jdFile: FileSchema.optional(),
+  template: z.enum(["classic", "modern", "compact", "executive"]).default("classic"),
+  inspirationImage: FileSchema.optional(),
+}).refine(
+  (d) => (d.cvText && d.cvText.length >= 30) || d.cvFile,
+  { message: "Provide a CV (paste text or upload file)" },
+).refine(
+  (d) => (d.jdText && d.jdText.length >= 30) || d.jdFile,
+  { message: "Provide a job description (paste text or upload file)" },
+);
 
-Operate in this strict order:
-
-1. CONSUMER VALUE ANALYSIS — Silently extract from the JD:
-   - Stated requirements (skills, tools, experience, qualifications)
-   - Unstated needs (cultural cues, seniority signals, business outcomes the role exists to drive, risks the hiring manager wants to avoid)
-   - Success metrics the role will be judged on
-
-2. POSITIONING — Map the candidate to the JD:
-   - Points-of-Parity (POPs): table-stakes the candidate must clearly meet
-   - Points-of-Difference (PODs): unique strengths that set the candidate apart from likely competitors
-   - De-emphasize or remove anything irrelevant to this JD. Never invent experience, employers, dates, degrees, or metrics. If a metric is implied but not stated, leave it qualitative.
-
-3. REWRITE every relevant CV bullet using the FABV framework, in this voice:
-   - Feature: what was done (the action / scope)
-   - Advantage: how it was done better / differently
-   - Benefit: the outcome for the team / company
-   - Value: the strategic value tied to what THIS JD cares about
-   Each bullet must read as ONE tight sentence (or two short clauses). Lead with a strong verb. Front-load JD keywords naturally. No buzzword soup, no first person, no "responsible for".
-
-4. OUTPUT FORMAT — Clean professional Markdown, in this exact order:
-
-# {Candidate Name}
-{one-line contact info if present in original CV}
-
-## Positioning Summary
-A 2–3 sentence pitch positioning the candidate specifically for THIS role. Lead with their #1 POD.
-
-## Core Strengths Aligned to This Role
-- 4–6 short bullets. Each maps a candidate strength to a specific JD requirement.
-
-## Experience
-### {Title} — {Company} ({Dates})
-- FABV bullets, prioritized by relevance to the JD.
-
-(Repeat for each role. Trim or compress older / irrelevant roles.)
-
+const TEMPLATES: Record<string, string> = {
+  classic: `Classic professional Markdown layout:
+# Name
+Contact line
+## Professional Summary
+## Core Competencies (4-6 bullets)
+## Professional Experience
+### Title — Company (Dates)
+- bullets
 ## Education
-- Keep concise.
+## Skills (grouped)`,
+  modern: `Modern minimalist Markdown layout with strong summary:
+# Name
+**Title** • Contact
+> One-line value proposition
+## Highlights (3-4 bullets, metrics first)
+## Experience
+### Company — Title (Dates)
+Brief context line.
+- impact bullets
+## Skills | Education (concise)`,
+  compact: `One-page compact Markdown layout. Aggressively trim. Short bullets.
+# Name | Contact
+## Summary (2 lines)
+## Skills (single line, comma-separated, JD-prioritized)
+## Experience
+### Title, Company (Dates)
+- 2-3 tight bullets per role
+## Education (one line)`,
+  executive: `Executive Markdown layout focused on scope and outcomes:
+# Name
+Contact
+## Executive Summary (3-4 sentences)
+## Areas of Expertise (categorized list)
+## Selected Achievements (4-6 standout bullets across career)
+## Professional Experience
+### Title — Company (Dates)
+Scope: team size, budget, geography (if implied)
+- outcome-led bullets
+## Education & Credentials`,
+};
 
-## Skills
-- Group by category. Prioritize skills the JD explicitly asks for.
+const SYSTEM_PROMPT = `You are an elite career marketing strategist and CV writer.
 
-Rules:
-- Output Markdown only. No preamble, no commentary, no "Here is your CV", no closing notes.
-- Never fabricate facts. Reframe, don't invent.
-- Keep it ATS-friendly: plain Markdown, no tables, no emojis, no exotic characters.`;
+Workflow (silent, then output via tool call):
+1. CONSUMER VALUE ANALYSIS — extract from JD: stated requirements, unstated needs, success metrics, hiring-manager risks.
+2. POSITIONING — map candidate to JD: Points-of-Parity (table-stakes met) and Points-of-Difference (unique edge). Never invent facts.
+3. REWRITE every relevant bullet using FABV (Feature → Advantage → Benefit → Value-to-this-JD). Lead with strong verbs. Front-load JD keywords naturally. No first person, no "responsible for", no buzzword soup.
+4. SCORE the alignment honestly (0-100). Be calibrated — most generic CVs against a specific JD score 40-70 before optimization, 70-90 after.
+
+You MUST return a single tool call to "return_optimized_cv" with:
+- matchScore: integer 0-100, post-optimization alignment
+- summary: 1-2 sentence positioning verdict
+- strengths: 3-5 specific candidate strengths that match JD requirements
+- missingKeywords: 4-8 important JD terms/skills not evidenced in the CV
+- improvements: 3-6 concrete, actionable suggestions (e.g. "Quantify the migration project at Acme", "Add a line about stakeholder management for VP audiences")
+- markdown: the full optimized CV in clean ATS-friendly Markdown, following the requested template structure exactly
+
+Markdown rules: plain Markdown only, no tables, no emojis, no exotic chars. No preamble, no commentary, no closing notes.`;
+
+const TOOL = {
+  type: "function" as const,
+  function: {
+    name: "return_optimized_cv",
+    description: "Return the alignment analysis and the optimized CV.",
+    parameters: {
+      type: "object",
+      properties: {
+        matchScore: { type: "integer", minimum: 0, maximum: 100 },
+        summary: { type: "string" },
+        strengths: { type: "array", items: { type: "string" } },
+        missingKeywords: { type: "array", items: { type: "string" } },
+        improvements: { type: "array", items: { type: "string" } },
+        markdown: { type: "string" },
+      },
+      required: ["matchScore", "summary", "strengths", "missingKeywords", "improvements", "markdown"],
+      additionalProperties: false,
+    },
+  },
+};
+
+type FilePart = z.infer<typeof FileSchema>;
+
+function filePart(f: FilePart) {
+  // Gemini via OpenAI-compatible gateway accepts image_url with data URLs for images & PDFs.
+  return {
+    type: "image_url" as const,
+    image_url: { url: `data:${f.mimeType};base64,${f.base64}` },
+  };
+}
 
 export const optimizeCv = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => InputSchema.parse(data))
@@ -61,7 +119,35 @@ export const optimizeCv = createServerFn({ method: "POST" })
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("AI is not configured");
 
-    const userPrompt = `JOB DESCRIPTION:\n"""\n${data.jobDescription}\n"""\n\nCANDIDATE CV:\n"""\n${data.cv}\n"""\n\nProduce the optimized CV now.`;
+    const userContent: any[] = [];
+    userContent.push({
+      type: "text",
+      text: `TARGET FORMAT TEMPLATE:\n${TEMPLATES[data.template]}\n\nFollow this structure for the markdown output.`,
+    });
+
+    // CV
+    userContent.push({ type: "text", text: "\n=== CANDIDATE CV ===" });
+    if (data.cvText) userContent.push({ type: "text", text: data.cvText });
+    if (data.cvFile) userContent.push(filePart(data.cvFile));
+
+    // JD
+    userContent.push({ type: "text", text: "\n=== JOB DESCRIPTION ===" });
+    if (data.jdText) userContent.push({ type: "text", text: data.jdText });
+    if (data.jdFile) userContent.push(filePart(data.jdFile));
+
+    // Inspiration
+    if (data.inspirationImage) {
+      userContent.push({
+        type: "text",
+        text: "\n=== FORMAT INSPIRATION (mimic the visual structure / section ordering / density of this layout in your Markdown output, while keeping it ATS-friendly) ===",
+      });
+      userContent.push(filePart(data.inspirationImage));
+    }
+
+    userContent.push({
+      type: "text",
+      text: "\nNow perform the analysis and return the result via the return_optimized_cv tool. Do not respond with plain text.",
+    });
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -70,11 +156,13 @@ export const optimizeCv = createServerFn({ method: "POST" })
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
+          { role: "user", content: userContent },
         ],
+        tools: [TOOL],
+        tool_choice: { type: "function", function: { name: "return_optimized_cv" } },
       }),
     });
 
@@ -87,8 +175,22 @@ export const optimizeCv = createServerFn({ method: "POST" })
     }
 
     const json = await res.json();
-    const content: string = json?.choices?.[0]?.message?.content ?? "";
-    if (!content) throw new Error("Empty response from AI.");
-
-    return { markdown: content };
+    const call = json?.choices?.[0]?.message?.tool_calls?.[0];
+    const argsStr: string | undefined = call?.function?.arguments;
+    if (!argsStr) {
+      console.error("No tool call returned:", JSON.stringify(json).slice(0, 500));
+      throw new Error("Empty response from AI.");
+    }
+    let parsed: any;
+    try { parsed = JSON.parse(argsStr); } catch {
+      throw new Error("AI returned malformed result.");
+    }
+    return {
+      matchScore: Number(parsed.matchScore ?? 0),
+      summary: String(parsed.summary ?? ""),
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
+      missingKeywords: Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords.map(String) : [],
+      improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map(String) : [],
+      markdown: String(parsed.markdown ?? ""),
+    };
   });
