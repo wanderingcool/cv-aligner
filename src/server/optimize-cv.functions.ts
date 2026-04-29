@@ -180,9 +180,23 @@ export const optimizeCv = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("AI is not configured");
 
     const userContent: any[] = [];
+
+    // 1) Put FORMAT INSPIRATION FIRST so the vision model anchors on it.
+    if (data.inspirationImage) {
+      userContent.push({
+        type: "text",
+        text: "=== FORMAT INSPIRATION IMAGE (read first) ===\nThis is a screenshot of a CV layout the user wants to mimic VISUALLY. Look at it carefully and extract concrete style tokens (accentColor as #RRGGBB hex, fonts, column layout, header style, dividers, density) into styleSpec. Also mirror its section ordering and bullet density in the markdown. The colors and structure of this image MUST drive styleSpec — do not fall back to template defaults when this image is present.",
+      });
+      const insp = normalizeFileForAI(data.inspirationImage, "Inspiration image");
+      if (insp.kind !== "binary") {
+        throw new Error("Format inspiration must be an image (PNG/JPG/WebP).");
+      }
+      userContent.push(insp.part);
+    }
+
     userContent.push({
       type: "text",
-      text: `TARGET FORMAT TEMPLATE:\n${TEMPLATES[data.template]}\n\nFollow this structure for the markdown output.`,
+      text: `TARGET TEMPLATE (use only if no inspiration image was provided above):\n${TEMPLATES[data.template]}`,
     });
 
     // CV
@@ -201,19 +215,11 @@ export const optimizeCv = createServerFn({ method: "POST" })
       userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
     }
 
-    // Inspiration
-    if (data.inspirationImage) {
-      userContent.push({
-        type: "text",
-        text: "\n=== FORMAT INSPIRATION (mimic the visual structure / section ordering / density of this layout in your Markdown output, while keeping it ATS-friendly) ===",
-      });
-      const n = normalizeFileForAI(data.inspirationImage, "Inspiration image");
-      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
-    }
-
     userContent.push({
       type: "text",
-      text: "\nNow perform the analysis and return the result via the return_optimized_cv tool. Do not respond with plain text.",
+      text: data.inspirationImage
+        ? "\nNow: (a) extract visual tokens from the inspiration image into styleSpec — accentColor MUST be a hex you actually see in the image, layout MUST reflect whether the image has a sidebar, etc. (b) Then produce the optimized CV markdown. Return everything via the return_optimized_cv tool."
+        : "\nNow perform the analysis and return the result via the return_optimized_cv tool. Do not respond with plain text.",
     });
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -223,7 +229,9 @@ export const optimizeCv = createServerFn({ method: "POST" })
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        // Use the stronger vision model when an inspiration image is provided so
+        // the styleSpec actually reflects the screenshot.
+        model: data.inspirationImage ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent },
@@ -260,5 +268,6 @@ export const optimizeCv = createServerFn({ method: "POST" })
       improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map(String) : [],
       markdown: String(parsed.markdown ?? ""),
       styleSpec: parsed.styleSpec ?? null,
+      usedInspiration: !!data.inspirationImage,
     };
   });
