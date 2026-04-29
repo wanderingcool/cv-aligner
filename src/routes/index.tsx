@@ -18,7 +18,7 @@ export const Route = createFileRoute("/")({
 type UploadedFile = { name: string; mimeType: string; base64: string; size: number };
 type Template = "classic" | "modern" | "compact" | "executive";
 
-const ACCEPT_DOC = ".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown";
+const ACCEPT_DOC = ".pdf,.txt,.md,application/pdf,text/plain,text/markdown";
 const ACCEPT_IMG = "image/png,image/jpeg,image/webp";
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -149,7 +149,7 @@ function Index() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputPanel
             label="Your CV"
-            hint="Paste below or upload PDF / Word / TXT."
+            hint="Paste below or upload PDF or TXT. (Word: save as PDF first.)"
             value={cvText} onChange={setCvText}
             placeholder="Paste your full CV — work history, education, skills..."
             file={cvFile} onFile={(f) => handleFile(f, setCvFile, "doc")} onClearFile={() => setCvFile(null)}
@@ -157,7 +157,7 @@ function Index() {
           />
           <InputPanel
             label="Job Description"
-            hint="Paste below or upload PDF / Word / TXT."
+            hint="Paste below or upload PDF or TXT. (Word: save as PDF first.)"
             value={jdText} onChange={setJdText}
             placeholder="Paste the full JD: responsibilities, requirements, company context..."
             file={jdFile} onFile={(f) => handleFile(f, setJdFile, "doc")} onClearFile={() => setJdFile(null)}
