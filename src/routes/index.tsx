@@ -45,7 +45,7 @@ function Index() {
   const [result, setResult] = useState<null | {
     matchScore: number; summary: string; strengths: string[];
     missingKeywords: string[]; improvements: string[]; markdown: string;
-    styleSpec: StyleSpec | null;
+    styleSpec: StyleSpec | null; usedInspiration?: boolean;
   }>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -108,7 +108,9 @@ function Index() {
   //   2) Otherwise the currently selected template (live — changing the dropdown
   //      updates the preview immediately, no re-optimization needed).
   const effectiveStyle = (): StyleSpec => {
-    if (result?.styleSpec && inspiration) return result.styleSpec;
+    // If THIS result was generated from an inspiration image, lock its
+    // AI-derived styleSpec — even if the user later clears the upload.
+    if (result?.styleSpec && result.usedInspiration) return result.styleSpec;
     return TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic;
   };
 
@@ -222,7 +224,7 @@ function Index() {
                   <div className="h-2 w-2 rounded-full bg-primary" />
                   <span className="text-sm font-medium">Aligned CV</span>
                   <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
-                    {labelForTemplate(template)}{inspiration ? " · inspired by your upload" : ""}
+                    {result.usedInspiration ? "Inspired by your screenshot" : labelForTemplate(template)}
                     <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: effectiveStyle().accentColor }} />
                   </span>
                 </div>
