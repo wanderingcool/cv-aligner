@@ -105,6 +105,37 @@ const TOOL = {
 
 type FilePart = z.infer<typeof FileSchema>;
 
+const SUPPORTED_BINARY_MIME = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
+const TEXT_MIME_PREFIXES = ["text/"];
+
+function decodeBase64Utf8(b64: string): string {
+  // Server runtime supports Buffer
+  return Buffer.from(b64, "base64").toString("utf-8");
+}
+
+function normalizeFileForAI(f: FilePart, label: string): { kind: "text"; text: string } | { kind: "binary"; part: any } {
+  const mime = (f.mimeType || "").toLowerCase();
+  if (TEXT_MIME_PREFIXES.some((p) => mime.startsWith(p)) || mime === "" || mime === "application/octet-stream" && /\.(txt|md)$/i.test(f.name ?? "")) {
+    return { kind: "text", text: decodeBase64Utf8(f.base64) };
+  }
+  if (SUPPORTED_BINARY_MIME.has(mime)) {
+    return {
+      kind: "binary",
+      part: { type: "image_url" as const, image_url: { url: `data:${mime};base64,${f.base64}` } },
+    };
+  }
+  // Word docs etc — not supported by Gemini directly
+  throw new Error(
+    `${label}: "${f.name ?? "file"}" (${mime || "unknown type"}) isn't supported. Please upload a PDF, image (PNG/JPG), or .txt — or paste the text directly. Word documents: open the file and "Save as PDF".`,
+  );
+}
+
 function filePart(f: FilePart) {
   // Gemini via OpenAI-compatible gateway accepts image_url with data URLs for images & PDFs.
   return {
@@ -128,12 +159,18 @@ export const optimizeCv = createServerFn({ method: "POST" })
     // CV
     userContent.push({ type: "text", text: "\n=== CANDIDATE CV ===" });
     if (data.cvText) userContent.push({ type: "text", text: data.cvText });
-    if (data.cvFile) userContent.push(filePart(data.cvFile));
+    if (data.cvFile) {
+      const n = normalizeFileForAI(data.cvFile, "CV");
+      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
+    }
 
     // JD
     userContent.push({ type: "text", text: "\n=== JOB DESCRIPTION ===" });
     if (data.jdText) userContent.push({ type: "text", text: data.jdText });
-    if (data.jdFile) userContent.push(filePart(data.jdFile));
+    if (data.jdFile) {
+      const n = normalizeFileForAI(data.jdFile, "Job description");
+      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
+    }
 
     // Inspiration
     if (data.inspirationImage) {
@@ -141,7 +178,8 @@ export const optimizeCv = createServerFn({ method: "POST" })
         type: "text",
         text: "\n=== FORMAT INSPIRATION (mimic the visual structure / section ordering / density of this layout in your Markdown output, while keeping it ATS-friendly) ===",
       });
-      userContent.push(filePart(data.inspirationImage));
+      const n = normalizeFileForAI(data.inspirationImage, "Inspiration image");
+      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
     }
 
     userContent.push({
