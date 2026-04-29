@@ -80,7 +80,14 @@ You MUST return a single tool call to "return_optimized_cv" with:
 - improvements: 3-6 concrete, actionable suggestions (e.g. "Quantify the migration project at Acme", "Add a line about stakeholder management for VP audiences")
 - markdown: the full optimized CV in clean ATS-friendly Markdown, following the requested template structure exactly
 - styleSpec: visual design tokens for rendering the downloadable CV.
-    * If a FORMAT INSPIRATION image is provided, derive accentColor, fonts, layout, headerStyle, sectionDivider, and density from that image as faithfully as possible.
+    * If a FORMAT INSPIRATION image is provided, you MUST visually inspect it and extract concrete tokens from what you see — do NOT use template defaults. Specifically:
+        - accentColor: sample the dominant non-black/non-white color used for headings, sidebar, name banner, or section bars. Return as #RRGGBB hex. If the design is purely monochrome, return the darkest gray you observe (e.g. #111827, #1F2937).
+        - headingFont / bodyFont: "serif" if you see clear serifs (Times-like, Garamond-like, slab); otherwise "sans". They can differ.
+        - layout: "two-column-left-sidebar" if a colored/contrasting sidebar runs down the LEFT containing contact/skills; "two-column-right-sidebar" if on the RIGHT; otherwise "single-column".
+        - headerStyle: "banner" if name sits inside a full-width colored bar/block; "centered" if name+contact are centered; otherwise "left-aligned".
+        - sectionDivider: "rule" if horizontal lines under section titles; "underline" if title text itself is underlined; "uppercase-label" if section titles are ALL CAPS small labels with no line; "none" if titles are just bold text with whitespace.
+        - density: "compact" if tight line-spacing & many bullets per inch; "airy" if generous whitespace; else "normal".
+      Be decisive. Pick the closest match. Do NOT default to classic blue (#1E3A8A) unless the inspiration is actually navy blue.
     * Otherwise pick sensible defaults for the chosen template:
         classic   → accentColor #1E3A8A, sans/serif, single-column, left-aligned, underline, normal
         modern    → accentColor #0F766E, sans/sans, single-column, left-aligned, rule, airy
