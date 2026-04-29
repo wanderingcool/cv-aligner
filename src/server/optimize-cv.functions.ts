@@ -159,12 +159,18 @@ export const optimizeCv = createServerFn({ method: "POST" })
     // CV
     userContent.push({ type: "text", text: "\n=== CANDIDATE CV ===" });
     if (data.cvText) userContent.push({ type: "text", text: data.cvText });
-    if (data.cvFile) userContent.push(filePart(data.cvFile));
+    if (data.cvFile) {
+      const n = normalizeFileForAI(data.cvFile, "CV");
+      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
+    }
 
     // JD
     userContent.push({ type: "text", text: "\n=== JOB DESCRIPTION ===" });
     if (data.jdText) userContent.push({ type: "text", text: data.jdText });
-    if (data.jdFile) userContent.push(filePart(data.jdFile));
+    if (data.jdFile) {
+      const n = normalizeFileForAI(data.jdFile, "Job description");
+      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
+    }
 
     // Inspiration
     if (data.inspirationImage) {
@@ -172,7 +178,8 @@ export const optimizeCv = createServerFn({ method: "POST" })
         type: "text",
         text: "\n=== FORMAT INSPIRATION (mimic the visual structure / section ordering / density of this layout in your Markdown output, while keeping it ATS-friendly) ===",
       });
-      userContent.push(filePart(data.inspirationImage));
+      const n = normalizeFileForAI(data.inspirationImage, "Inspiration image");
+      userContent.push(n.kind === "text" ? { type: "text", text: n.text } : n.part);
     }
 
     userContent.push({
