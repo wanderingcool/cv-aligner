@@ -79,6 +79,13 @@ You MUST return a single tool call to "return_optimized_cv" with:
 - missingKeywords: 4-8 important JD terms/skills not evidenced in the CV
 - improvements: 3-6 concrete, actionable suggestions (e.g. "Quantify the migration project at Acme", "Add a line about stakeholder management for VP audiences")
 - markdown: the full optimized CV in clean ATS-friendly Markdown, following the requested template structure exactly
+- styleSpec: visual design tokens for rendering the downloadable CV.
+    * If a FORMAT INSPIRATION image is provided, derive accentColor, fonts, layout, headerStyle, sectionDivider, and density from that image as faithfully as possible.
+    * Otherwise pick sensible defaults for the chosen template:
+        classic   → accentColor #1E3A8A, sans/serif, single-column, left-aligned, underline, normal
+        modern    → accentColor #0F766E, sans/sans, single-column, left-aligned, rule, airy
+        compact   → accentColor #111827, sans/sans, single-column, left-aligned, uppercase-label, compact
+        executive → accentColor #1F2937, serif/serif, two-column-left-sidebar, banner, rule, normal
 
 Markdown rules: plain Markdown only, no tables, no emojis, no exotic chars. No preamble, no commentary, no closing notes.`;
 
@@ -96,8 +103,23 @@ const TOOL = {
         missingKeywords: { type: "array", items: { type: "string" } },
         improvements: { type: "array", items: { type: "string" } },
         markdown: { type: "string" },
+        styleSpec: {
+          type: "object",
+          description: "Visual style derived from the inspiration image (if provided) or sensible defaults for the chosen template.",
+          properties: {
+            accentColor: { type: "string", description: "Hex like #1E40AF" },
+            headingFont: { type: "string", enum: ["serif", "sans", "mono"] },
+            bodyFont: { type: "string", enum: ["serif", "sans", "mono"] },
+            layout: { type: "string", enum: ["single-column", "two-column-left-sidebar", "two-column-right-sidebar"] },
+            headerStyle: { type: "string", enum: ["centered", "left-aligned", "banner"] },
+            sectionDivider: { type: "string", enum: ["underline", "rule", "uppercase-label", "none"] },
+            density: { type: "string", enum: ["compact", "normal", "airy"] },
+          },
+          required: ["accentColor", "headingFont", "bodyFont", "layout", "headerStyle", "sectionDivider", "density"],
+          additionalProperties: false,
+        },
       },
-      required: ["matchScore", "summary", "strengths", "missingKeywords", "improvements", "markdown"],
+      required: ["matchScore", "summary", "strengths", "missingKeywords", "improvements", "markdown", "styleSpec"],
       additionalProperties: false,
     },
   },
@@ -230,5 +252,6 @@ export const optimizeCv = createServerFn({ method: "POST" })
       missingKeywords: Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords.map(String) : [],
       improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map(String) : [],
       markdown: String(parsed.markdown ?? ""),
+      styleSpec: parsed.styleSpec ?? null,
     };
   });

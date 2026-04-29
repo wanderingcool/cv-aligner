@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { optimizeCv } from "@/server/optimize-cv.functions";
+import { renderCvHtml, TEMPLATE_DEFAULTS, type StyleSpec } from "@/lib/cv-renderer";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -44,6 +45,7 @@ function Index() {
   const [result, setResult] = useState<null | {
     matchScore: number; summary: string; strengths: string[];
     missingKeywords: string[]; improvements: string[]; markdown: string;
+    styleSpec: StyleSpec | null;
   }>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -101,23 +103,29 @@ function Index() {
     setTimeout(() => setCopied(false), 1800);
   };
 
+  const effectiveStyle = (): StyleSpec =>
+    result?.styleSpec ?? TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic;
+
+  const buildStyledHtml = () =>
+    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV" }) : "";
+
   const handleExportPdf = () => {
     if (!result) return;
     const w = window.open("", "_blank", "width=900,height=1100");
     if (!w) { toast.error("Please allow popups to export PDF."); return; }
-    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Optimized CV</title>
-      <style>
-        @page { margin: 0.6in; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; line-height: 1.5; max-width: 780px; margin: 0 auto; padding: 24px; }
-        h1 { font-size: 22px; margin: 0 0 4px; }
-        h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: #334155; margin: 22px 0 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-        h3 { font-size: 13px; margin: 14px 0 4px; }
-        p, li { font-size: 12.5px; }
-        ul { padding-left: 18px; margin: 6px 0; }
-      </style></head><body><pre style="white-space:pre-wrap;font-family:inherit;font-size:12.5px">${escapeHtml(result.markdown)}</pre>
-      <script>window.onload = () => { window.print(); };</script></body></html>`;
+    const html = buildStyledHtml() + `<script>window.onload = () => { setTimeout(() => window.print(), 150); };</script>`;
     w.document.write(html);
     w.document.close();
+  };
+
+  const handleDownloadHtml = () => {
+    if (!result) return;
+    const blob = new Blob([buildStyledHtml()], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "optimized-cv.html"; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    toast.success("HTML downloaded.");
   };
 
   return (
@@ -207,21 +215,29 @@ function Index() {
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-primary" />
                   <span className="text-sm font-medium">Aligned CV</span>
-                  <span className="text-xs text-muted-foreground ml-2">{labelForTemplate(template)}{inspiration ? " · format inspired by upload" : ""}</span>
+                  <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
+                    {labelForTemplate(template)}{inspiration ? " · inspired by your upload" : ""}
+                    <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: effectiveStyle().accentColor }} />
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={handleCopy}>
                     {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownloadHtml}>
+                    <Download className="h-4 w-4 mr-1.5" />HTML
+                  </Button>
                   <Button size="sm" onClick={handleExportPdf}>
                     <Download className="h-4 w-4 mr-1.5" />Export PDF
                   </Button>
                 </div>
               </div>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground p-6 max-h-[70vh] overflow-auto">
-                {result.markdown}
-              </pre>
+              <iframe
+                title="CV preview"
+                srcDoc={buildStyledHtml()}
+                className="w-full h-[80vh] bg-white border-0"
+              />
             </div>
           </div>
         ) : (
@@ -378,8 +394,4 @@ function AnalysisCard({ result }: { result: { matchScore: number; summary: strin
       </div>
     </div>
   );
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
