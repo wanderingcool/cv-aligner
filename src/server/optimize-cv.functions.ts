@@ -79,6 +79,13 @@ You MUST return a single tool call to "return_optimized_cv" with:
 - missingKeywords: 4-8 important JD terms/skills not evidenced in the CV
 - improvements: 3-6 concrete, actionable suggestions (e.g. "Quantify the migration project at Acme", "Add a line about stakeholder management for VP audiences")
 - markdown: the full optimized CV in clean ATS-friendly Markdown, following the requested template structure exactly
+- styleSpec: visual design tokens for rendering the downloadable CV.
+    * If a FORMAT INSPIRATION image is provided, derive accentColor, fonts, layout, headerStyle, sectionDivider, and density from that image as faithfully as possible.
+    * Otherwise pick sensible defaults for the chosen template:
+        classic   → accentColor #1E3A8A, sans/serif, single-column, left-aligned, underline, normal
+        modern    → accentColor #0F766E, sans/sans, single-column, left-aligned, rule, airy
+        compact   → accentColor #111827, sans/sans, single-column, left-aligned, uppercase-label, compact
+        executive → accentColor #1F2937, serif/serif, two-column-left-sidebar, banner, rule, normal
 
 Markdown rules: plain Markdown only, no tables, no emojis, no exotic chars. No preamble, no commentary, no closing notes.`;
 
