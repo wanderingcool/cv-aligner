@@ -96,8 +96,23 @@ const TOOL = {
         missingKeywords: { type: "array", items: { type: "string" } },
         improvements: { type: "array", items: { type: "string" } },
         markdown: { type: "string" },
+        styleSpec: {
+          type: "object",
+          description: "Visual style derived from the inspiration image (if provided) or sensible defaults for the chosen template.",
+          properties: {
+            accentColor: { type: "string", description: "Hex like #1E40AF" },
+            headingFont: { type: "string", enum: ["serif", "sans", "mono"] },
+            bodyFont: { type: "string", enum: ["serif", "sans", "mono"] },
+            layout: { type: "string", enum: ["single-column", "two-column-left-sidebar", "two-column-right-sidebar"] },
+            headerStyle: { type: "string", enum: ["centered", "left-aligned", "banner"] },
+            sectionDivider: { type: "string", enum: ["underline", "rule", "uppercase-label", "none"] },
+            density: { type: "string", enum: ["compact", "normal", "airy"] },
+          },
+          required: ["accentColor", "headingFont", "bodyFont", "layout", "headerStyle", "sectionDivider", "density"],
+          additionalProperties: false,
+        },
       },
-      required: ["matchScore", "summary", "strengths", "missingKeywords", "improvements", "markdown"],
+      required: ["matchScore", "summary", "strengths", "missingKeywords", "improvements", "markdown", "styleSpec"],
       additionalProperties: false,
     },
   },
@@ -230,5 +245,6 @@ export const optimizeCv = createServerFn({ method: "POST" })
       missingKeywords: Array.isArray(parsed.missingKeywords) ? parsed.missingKeywords.map(String) : [],
       improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map(String) : [],
       markdown: String(parsed.markdown ?? ""),
+      styleSpec: parsed.styleSpec ?? null,
     };
   });
