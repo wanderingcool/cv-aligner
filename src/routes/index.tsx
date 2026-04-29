@@ -215,21 +215,29 @@ function Index() {
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-primary" />
                   <span className="text-sm font-medium">Aligned CV</span>
-                  <span className="text-xs text-muted-foreground ml-2">{labelForTemplate(template)}{inspiration ? " · format inspired by upload" : ""}</span>
+                  <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
+                    {labelForTemplate(template)}{inspiration ? " · inspired by your upload" : ""}
+                    <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: effectiveStyle().accentColor }} />
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={handleCopy}>
                     {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
                     {copied ? "Copied" : "Copy"}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownloadHtml}>
+                    <Download className="h-4 w-4 mr-1.5" />HTML
+                  </Button>
                   <Button size="sm" onClick={handleExportPdf}>
                     <Download className="h-4 w-4 mr-1.5" />Export PDF
                   </Button>
                 </div>
               </div>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground p-6 max-h-[70vh] overflow-auto">
-                {result.markdown}
-              </pre>
+              <iframe
+                title="CV preview"
+                srcDoc={buildStyledHtml()}
+                className="w-full h-[80vh] bg-white border-0"
+              />
             </div>
           </div>
         ) : (
