@@ -182,7 +182,7 @@ function Index() {
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="text-sm font-medium mb-1">Output format</div>
-            <div className="text-xs text-muted-foreground mb-3">Choose a structure for your aligned CV.</div>
+            <div className="text-xs text-muted-foreground mb-3">Drives the design of the downloadable CV. Updates the preview live.</div>
             <Select value={template} onValueChange={(v) => setTemplate(v as Template)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
