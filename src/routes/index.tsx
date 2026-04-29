@@ -103,8 +103,14 @@ function Index() {
     setTimeout(() => setCopied(false), 1800);
   };
 
-  const effectiveStyle = (): StyleSpec =>
-    result?.styleSpec ?? TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic;
+  // The downloadable CV's visual design is driven by:
+  //   1) AI-derived styleSpec if a format-inspiration image was uploaded for THIS run
+  //   2) Otherwise the currently selected template (live — changing the dropdown
+  //      updates the preview immediately, no re-optimization needed).
+  const effectiveStyle = (): StyleSpec => {
+    if (result?.styleSpec && inspiration) return result.styleSpec;
+    return TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic;
+  };
 
   const buildStyledHtml = () =>
     result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV" }) : "";
@@ -176,7 +182,7 @@ function Index() {
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="text-sm font-medium mb-1">Output format</div>
-            <div className="text-xs text-muted-foreground mb-3">Choose a structure for your aligned CV.</div>
+            <div className="text-xs text-muted-foreground mb-3">Drives the design of the downloadable CV. Updates the preview live.</div>
             <Select value={template} onValueChange={(v) => setTemplate(v as Template)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
