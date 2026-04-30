@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { type StripeEnv, verifyWebhook } from "@/lib/stripe.server";
 
-let _supabase: ReturnType<typeof createClient> | null = null;
-function getSupabase() {
+let _supabase: SupabaseClient<Database> | null = null;
+function getSupabase(): SupabaseClient<Database> {
   if (!_supabase) {
-    _supabase = createClient(
+    _supabase = createClient<Database>(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
@@ -85,7 +86,7 @@ async function handleCheckoutCompleted(session: any) {
     .select("passive_leap_credits")
     .eq("id", userId)
     .maybeSingle();
-  const current = (profile?.passive_leap_credits as number | undefined) ?? 0;
+  const current = profile?.passive_leap_credits ?? 0;
   await sb
     .from("profiles")
     .update({
