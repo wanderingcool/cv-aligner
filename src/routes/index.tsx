@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import { redirect, Link, useNavigate } from "@tanstack/react-router";
 import {
-  Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap,
+  Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap, LogOut,
   Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,15 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { optimizeCv } from "@/server/optimize-cv.functions";
 import { renderCvHtml, TEMPLATE_DEFAULTS, type StyleSpec } from "@/lib/cv-renderer";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile, effectiveTier } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw redirect({ to: "/login" });
+  },
   component: Index,
 });
 
@@ -35,6 +43,10 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 function Index() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile } = useProfile(user?.id);
+  const tier = effectiveTier(profile);
   const [cvText, setCvText] = useState("");
   const [cvFile, setCvFile] = useState<UploadedFile | null>(null);
   const [jdText, setJdText] = useState("");
@@ -46,6 +58,7 @@ function Index() {
     matchScore: number; summary: string; strengths: string[];
     missingKeywords: string[]; improvements: string[]; markdown: string;
     styleSpec: StyleSpec | null; usedInspiration?: boolean;
+    tier?: "free" | "passive_leap" | "active_hunter"; watermarked?: boolean;
   }>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -115,7 +128,7 @@ function Index() {
   };
 
   const buildStyledHtml = () =>
-    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV" }) : "";
+    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV", watermark: !!result.watermarked }) : "";
 
   const handleExportPdf = () => {
     if (!result) return;
@@ -147,7 +160,18 @@ function Index() {
             </div>
             <span className="font-semibold tracking-tight">Positioned</span>
           </div>
-          <span className="text-xs text-muted-foreground hidden sm:block">AI-aligned CVs for the role you actually want</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-wider px-2 py-1 rounded-full border border-border bg-secondary text-muted-foreground">
+              {tier === "active_hunter" ? "Active Hunter" : tier === "passive_leap" ? "Passive Leap" : "Free"}
+            </span>
+            {tier !== "active_hunter" && (
+              <Link to="/pricing" className="text-xs font-medium text-primary hover:underline">Upgrade</Link>
+            )}
+            <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
+            <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/login" }); }}>
+              <LogOut className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </header>
 
