@@ -32,11 +32,15 @@ export const Route = createRootRoute({
       { title: "Positioned — AI CV Optimizer for Any Job Description" },
       { name: "description", content: "Stop applying. Start aligning. Generate a job-winning, customized CV in 10 seconds with AI." },
       { name: "author", content: "Positioned" },
-      { property: "og:title", content: "Positioned — AI CV Optimizer" },
-      { property: "og:description", content: "Stop applying. Start aligning. Generate a job-winning, customized CV in 10 seconds." },
+      { property: "og:title", content: "Positioned — AI CV Optimizer for Any Job Description" },
+      { property: "og:description", content: "Stop applying. Start aligning. Generate a job-winning, customized CV in 10 seconds with AI." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Positioned — AI CV Optimizer for Any Job Description" },
+      { name: "twitter:description", content: "Stop applying. Start aligning. Generate a job-winning, customized CV in 10 seconds with AI." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/7a66495b-3cf8-46fb-97ea-50549c70ad99" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/7a66495b-3cf8-46fb-97ea-50549c70ad99" },
     ],
     links: [
       {
