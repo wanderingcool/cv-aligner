@@ -307,6 +307,25 @@ export const optimizeCv = createServerFn({ method: "POST" })
     try { parsed = JSON.parse(argsStr); } catch {
       throw new Error("AI returned malformed result.");
     }
+
+    // Consume entitlement + log generation
+    if (consumeMode === "free") {
+      await admin.from("profiles").update({
+        free_generations_this_month: freeUsed + 1,
+        updated_at: new Date().toISOString(),
+      }).eq("id", userId);
+    } else if (consumeMode === "passive_leap") {
+      await admin.from("profiles").update({
+        passive_leap_credits: Math.max(0, credits - 1),
+        updated_at: new Date().toISOString(),
+      }).eq("id", userId);
+    }
+    await admin.from("cv_generations").insert({
+      user_id: userId,
+      tier_at_use: consumeMode,
+      watermarked: consumeMode === "free",
+    });
+
     return {
       matchScore: Number(parsed.matchScore ?? 0),
       summary: String(parsed.summary ?? ""),
