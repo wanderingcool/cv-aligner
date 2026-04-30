@@ -18,6 +18,8 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -27,33 +29,69 @@ function LoginPage() {
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+    setInfoMsg(null);
+    if (!email || !password) {
+      setErrorMsg("Please enter both email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters.");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: { emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
+        if (!data.session) {
+          setInfoMsg("Account created. Check your inbox to confirm your email before signing in.");
+          setMode("signin");
+          return;
+        }
         toast.success("Account created.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          // Supabase returns generic "Invalid login credentials" for both
+          // wrong password and unknown email. Surface a clearer message.
+          const msg = /invalid login credentials/i.test(error.message)
+            ? "Incorrect email or password. If you don't have an account yet, click \"Sign up\" below."
+            : error.message;
+          throw new Error(msg);
+        }
       }
       navigate({ to: "/" });
     } catch (err: any) {
-      toast.error(err?.message ?? "Authentication failed.");
+      const msg = err?.message ?? "Authentication failed.";
+      setErrorMsg(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogle = async () => {
+    setErrorMsg(null);
+    setInfoMsg(null);
+    try {
     const result = await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
-    if (result?.error) toast.error(result.error.message);
-    else if (!result?.redirected) navigate({ to: "/" });
+      if (result?.error) {
+        setErrorMsg(result.error.message);
+        toast.error(result.error.message);
+        return;
+      }
+      if (!result?.redirected) navigate({ to: "/" });
+    } catch (e: any) {
+      const msg = e?.message ?? "Google sign-in failed.";
+      setErrorMsg(msg);
+      toast.error(msg);
+    }
   };
 
   return (
@@ -87,6 +125,16 @@ function LoginPage() {
           <form onSubmit={handleEmail} className="space-y-3">
             <Input type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             <Input type="password" required minLength={6} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            {errorMsg && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {errorMsg}
+              </div>
+            )}
+            {infoMsg && (
+              <div className="rounded-md border border-border bg-secondary px-3 py-2 text-xs text-foreground">
+                {infoMsg}
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
             </Button>
@@ -94,7 +142,7 @@ function LoginPage() {
 
           <button
             type="button"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setErrorMsg(null); setInfoMsg(null); }}
             className="mt-4 w-full text-center text-sm text-muted-foreground hover:text-foreground"
           >
             {mode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
