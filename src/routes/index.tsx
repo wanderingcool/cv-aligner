@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
+import { redirect, Link, useNavigate } from "@tanstack/react-router";
 import {
-  Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap,
+  Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap, LogOut,
   Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,15 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { optimizeCv } from "@/server/optimize-cv.functions";
 import { renderCvHtml, TEMPLATE_DEFAULTS, type StyleSpec } from "@/lib/cv-renderer";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile, effectiveTier } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw redirect({ to: "/login" });
+  },
   component: Index,
 });
 
@@ -35,6 +43,10 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 function Index() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile } = useProfile(user?.id);
+  const tier = effectiveTier(profile);
   const [cvText, setCvText] = useState("");
   const [cvFile, setCvFile] = useState<UploadedFile | null>(null);
   const [jdText, setJdText] = useState("");
