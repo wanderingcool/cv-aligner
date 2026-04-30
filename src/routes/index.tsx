@@ -159,7 +159,18 @@ function Index() {
             </div>
             <span className="font-semibold tracking-tight">Positioned</span>
           </div>
-          <span className="text-xs text-muted-foreground hidden sm:block">AI-aligned CVs for the role you actually want</span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] uppercase tracking-wider px-2 py-1 rounded-full border border-border bg-secondary text-muted-foreground">
+              {tier === "active_hunter" ? "Active Hunter" : tier === "passive_leap" ? "Passive Leap" : "Free"}
+            </span>
+            {tier !== "active_hunter" && (
+              <Link to="/pricing" className="text-xs font-medium text-primary hover:underline">Upgrade</Link>
+            )}
+            <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
+            <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/login" }); }}>
+              <LogOut className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </header>
 
