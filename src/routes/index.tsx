@@ -102,7 +102,14 @@ function Index() {
       toast.success("Aligned CV ready.");
       setTimeout(() => document.getElementById("output")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
     } catch (e: any) {
-      toast.error(e?.message ?? "Something went wrong.");
+      let msg = "Something went wrong.";
+      if (e instanceof Response) {
+        try { msg = (await e.text()) || `Request failed (${e.status})`; }
+        catch { msg = `Request failed (${e.status})`; }
+      } else if (e?.message) {
+        msg = e.message;
+      }
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
