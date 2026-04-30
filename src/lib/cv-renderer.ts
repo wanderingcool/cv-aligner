@@ -112,7 +112,7 @@ function densityVars(d: StyleSpec["density"]) {
   return                       { line: "1.5",  paraGap: "6px",  h2Gap: "20px", h3Gap: "12px", base: "12px" };
 }
 
-export function renderCvHtml(markdown: string, spec: StyleSpec, opts?: { titleHint?: string }): string {
+export function renderCvHtml(markdown: string, spec: StyleSpec, opts?: { titleHint?: string; watermark?: boolean }): string {
   const blocks = parseMarkdown(markdown);
   const accent = sanitizeColor(spec.accentColor);
   const headFont = FONT_STACKS[spec.headingFont];
@@ -168,10 +168,16 @@ export function renderCvHtml(markdown: string, spec: StyleSpec, opts?: { titleHi
     .side { font-size: ${parseFloat(dv.base) - 0.5}px; }
     ${dividerCss}
     @media print { body { padding: 0; } a { color: inherit; text-decoration: none; } }
+    .pos-watermark { position: fixed; bottom: 12px; right: 12px; font-family: ${bodyFont}; font-size: 10px; color: #9ca3af; opacity: 0.85; letter-spacing: 0.04em; }
+    .pos-watermark-bg { position: fixed; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; transform: rotate(-28deg); font-size: 76px; color: rgba(17, 24, 39, 0.06); font-weight: 700; font-family: ${headFont}; letter-spacing: 0.1em; z-index: 0; }
+    @media print { .pos-watermark, .pos-watermark-bg { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   `;
 
   const title = escapeHtml(opts?.titleHint ?? "Optimized CV");
-  return `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title><style>${css}</style></head><body>${bodyHtml}</body></html>`;
+  const wm = opts?.watermark
+    ? `<div class="pos-watermark-bg">POSITIONED</div><div class="pos-watermark">Optimized by Positioned · cvpositioned.com</div>`
+    : "";
+  return `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title><style>${css}</style></head><body>${wm}${bodyHtml}</body></html>`;
 }
 
 function sanitizeColor(c: string): string {
