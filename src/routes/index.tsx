@@ -58,6 +58,7 @@ function Index() {
     matchScore: number; summary: string; strengths: string[];
     missingKeywords: string[]; improvements: string[]; markdown: string;
     styleSpec: StyleSpec | null; usedInspiration?: boolean;
+    tier?: "free" | "passive_leap" | "active_hunter"; watermarked?: boolean;
   }>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -127,7 +128,7 @@ function Index() {
   };
 
   const buildStyledHtml = () =>
-    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV" }) : "";
+    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV", watermark: !!result.watermarked }) : "";
 
   const handleExportPdf = () => {
     if (!result) return;
