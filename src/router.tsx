@@ -1,5 +1,38 @@
 import { createRouter, useRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { supabase } from "./integrations/supabase/client";
+
+// Install a one-time fetch interceptor (browser only) that injects the
+// current Supabase access token into TanStack server function requests so
+// `requireSupabaseAuth` middleware receives the Authorization header.
+if (typeof window !== "undefined" && !(window as any).__SB_FETCH_PATCHED__) {
+  (window as any).__SB_FETCH_PATCHED__ = true;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    try {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      if (url && url.includes("/_serverFn/")) {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (token) {
+          const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+          if (!headers.has("authorization")) {
+            headers.set("authorization", `Bearer ${token}`);
+          }
+          return originalFetch(input, { ...(init ?? {}), headers });
+        }
+      }
+    } catch {
+      // fall through to original fetch
+    }
+    return originalFetch(input, init);
+  };
+}
 
 function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
