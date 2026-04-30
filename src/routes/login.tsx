@@ -18,6 +18,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
@@ -77,13 +78,16 @@ function LoginPage() {
   const handleGoogle = async () => {
     setErrorMsg(null);
     setInfoMsg(null);
+    setGoogleLoading(true);
     try {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+        extraParams: { prompt: "select_account" },
+      });
       if (result?.error) {
-        setErrorMsg(result.error.message);
-        toast.error(result.error.message);
+        const msg = result.error.message || "Google sign-in could not start. Please try again.";
+        setErrorMsg(msg);
+        toast.error(msg);
         return;
       }
       if (!result?.redirected) navigate({ to: "/" });
@@ -91,6 +95,8 @@ function LoginPage() {
       const msg = e?.message ?? "Google sign-in failed.";
       setErrorMsg(msg);
       toast.error(msg);
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -114,8 +120,8 @@ function LoginPage() {
             {mode === "signin" ? "Sign in to align your CV." : "Start aligning CVs in seconds."}
           </p>
 
-          <Button type="button" variant="outline" className="w-full mt-6" onClick={handleGoogle}>
-            Continue with Google
+          <Button type="button" variant="outline" className="w-full mt-6" onClick={handleGoogle} disabled={googleLoading || loading}>
+            {googleLoading ? "Opening Google…" : "Continue with Google"}
           </Button>
 
           <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
