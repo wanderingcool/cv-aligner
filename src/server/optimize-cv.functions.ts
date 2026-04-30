@@ -1,5 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 const FileSchema = z.object({
   base64: z.string().min(1),
@@ -174,8 +177,52 @@ function filePart(f: FilePart) {
 }
 
 export const optimizeCv = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => InputSchema.parse(data))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+
+    // Use service role to safely read+update profile counters bypassing RLS update gap.
+    const admin = createClient<Database>(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    // Load profile and apply lazy monthly reset for free tier.
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("subscription_tier, free_generations_this_month, period_start, passive_leap_credits, active_hunter_until")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!profile) throw new Error("Profile not found");
+
+    const FREE_LIMIT = 3;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString().slice(0, 10);
+
+    let freeUsed = profile.free_generations_this_month ?? 0;
+    if (!profile.period_start || profile.period_start < monthStart) {
+      freeUsed = 0;
+      await admin.from("profiles").update({
+        free_generations_this_month: 0,
+        period_start: monthStart,
+        updated_at: new Date().toISOString(),
+      }).eq("id", userId);
+    }
+
+    const activeUntil = profile.active_hunter_until ? new Date(profile.active_hunter_until) : null;
+    const isActiveHunter = profile.subscription_tier === "active_hunter" && (!activeUntil || activeUntil > now);
+    const credits = profile.passive_leap_credits ?? 0;
+
+    let consumeMode: "active_hunter" | "passive_leap" | "free" = "free";
+    if (isActiveHunter) consumeMode = "active_hunter";
+    else if (credits > 0) consumeMode = "passive_leap";
+    else if (freeUsed < FREE_LIMIT) consumeMode = "free";
+    else {
+      throw new Error(`You've used all ${FREE_LIMIT} free optimizations this month. Upgrade to keep going.`);
+    }
+
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("AI is not configured");
 
@@ -269,5 +316,7 @@ export const optimizeCv = createServerFn({ method: "POST" })
       markdown: String(parsed.markdown ?? ""),
       styleSpec: parsed.styleSpec ?? null,
       usedInspiration: !!data.inspirationImage,
+      tier: consumeMode,
+      watermarked: consumeMode === "free",
     };
   });
