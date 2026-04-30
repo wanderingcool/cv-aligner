@@ -14,7 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cv_generations: {
+        Row: {
+          created_at: string
+          id: string
+          tier_at_use: Database["public"]["Enums"]["subscription_tier"]
+          user_id: string
+          watermarked: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tier_at_use: Database["public"]["Enums"]["subscription_tier"]
+          user_id: string
+          watermarked?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tier_at_use?: Database["public"]["Enums"]["subscription_tier"]
+          user_id?: string
+          watermarked?: boolean
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          active_hunter_until: string | null
+          created_at: string
+          email: string | null
+          free_generations_this_month: number
+          id: string
+          passive_leap_credits: number
+          period_start: string
+          stripe_customer_id: string | null
+          subscription_tier: Database["public"]["Enums"]["subscription_tier"]
+          updated_at: string
+        }
+        Insert: {
+          active_hunter_until?: string | null
+          created_at?: string
+          email?: string | null
+          free_generations_this_month?: number
+          id: string
+          passive_leap_credits?: number
+          period_start?: string
+          stripe_customer_id?: string | null
+          subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+        }
+        Update: {
+          active_hunter_until?: string | null
+          created_at?: string
+          email?: string | null
+          free_generations_this_month?: number
+          id?: string
+          passive_leap_credits?: number
+          period_start?: string
+          stripe_customer_id?: string | null
+          subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stripe_events: {
+        Row: {
+          event_id: string
+          payload: Json
+          processed_at: string
+          type: string
+        }
+        Insert: {
+          event_id: string
+          payload: Json
+          processed_at?: string
+          type: string
+        }
+        Update: {
+          event_id?: string
+          payload?: Json
+          processed_at?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +106,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_tier: "free" | "active_hunter" | "passive_leap"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +233,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_tier: ["free", "active_hunter", "passive_leap"],
+    },
   },
 } as const
