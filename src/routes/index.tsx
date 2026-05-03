@@ -277,7 +277,86 @@ function Index() {
 }
 
 function labelForTemplate(t: Template) {
-  return ({ classic: "Classic", modern: "Modern", compact: "Compact", executive: "Executive" })[t];
+  return ({
+    classic: "Classic",
+    "ats-clean": "ATS Clean",
+    "premium-executive": "Premium Executive",
+    "modern-minimal": "Modern Minimal",
+    inspiration: "Inspiration Design",
+  } as const)[t];
+}
+
+function A4Preview({
+  html, accent, templateLabel, copied, onCopy, onDownloadHtml, onExportPdf,
+}: {
+  html: string; accent: string; templateLabel: string; copied: boolean;
+  onCopy: () => void; onDownloadHtml: () => void; onExportPdf: () => void;
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [overflow, setOverflow] = useState(false);
+
+  // A4 aspect ratio: 210mm x 297mm = 1 : 1.4142
+  useEffect(() => {
+    const check = () => {
+      const win = iframeRef.current?.contentWindow;
+      const doc = iframeRef.current?.contentDocument;
+      if (!win || !doc?.body) return;
+      // Match the printed A4 page height in CSS pixels at 96dpi: 297mm ≈ 1122px.
+      const pageHeightPx = 1122;
+      const contentHeight = doc.body.scrollHeight;
+      setOverflow(contentHeight > pageHeightPx + 8);
+    };
+    const t = setTimeout(check, 250);
+    return () => clearTimeout(t);
+  }, [html]);
+
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-primary" />
+          <span className="text-sm font-medium">Aligned CV</span>
+          <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
+            {templateLabel}
+            <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: accent }} />
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onCopy}>
+            {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onDownloadHtml}>
+            <Download className="h-4 w-4 mr-1.5" />HTML
+          </Button>
+          <Button size="sm" onClick={onExportPdf}>
+            <Download className="h-4 w-4 mr-1.5" />Export PDF
+          </Button>
+        </div>
+      </div>
+
+      {overflow && (
+        <div className="px-5 py-2.5 border-b border-amber-500/30 bg-amber-500/10 text-amber-800 text-xs flex items-center gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Your CV is exceeding one page. Please shorten content or use a more compact format.
+        </div>
+      )}
+
+      <div className="bg-secondary/40 p-6 flex justify-center">
+        <div
+          className="bg-white shadow-md ring-1 ring-border overflow-hidden"
+          style={{ width: "min(100%, 794px)", aspectRatio: "210 / 297" }}
+        >
+          <iframe
+            ref={iframeRef}
+            title="CV preview"
+            srcDoc={html}
+            className="w-full h-full border-0 bg-white"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function InputPanel({
