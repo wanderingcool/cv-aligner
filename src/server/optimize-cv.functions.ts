@@ -15,7 +15,8 @@ const InputSchema = z.object({
   cvFile: FileSchema.optional(),
   jdText: z.string().trim().max(30000).optional(),
   jdFile: FileSchema.optional(),
-  template: z.enum(["classic", "modern", "compact", "executive"]).default("classic"),
+  template: z.enum(["classic", "ats-clean", "premium-executive", "modern-minimal", "inspiration"]).default("classic"),
+  targetScore: z.number().int().min(80).max(100).default(90),
   inspirationImage: FileSchema.optional(),
 }).refine(
   (d) => (d.cvText && d.cvText.length >= 30) || d.cvFile,
@@ -36,7 +37,7 @@ Contact line
 - bullets
 ## Education
 ## Skills (grouped)`,
-  modern: `Modern minimalist Markdown layout with strong summary:
+  "modern-minimal": `Modern minimalist one-page Markdown layout. Strict single page. Generous whitespace, short bullets.
 # Name
 **Title** • Contact
 > One-line value proposition
@@ -46,7 +47,7 @@ Contact line
 Brief context line.
 - impact bullets
 ## Skills | Education (concise)`,
-  compact: `One-page compact Markdown layout. Aggressively trim. Short bullets.
+  "ats-clean": `ATS-friendly one-page Markdown. Plain section titles only. No symbols, no columns. Aggressively trim.
 # Name | Contact
 ## Summary (2 lines)
 ## Skills (single line, comma-separated, JD-prioritized)
@@ -54,7 +55,7 @@ Brief context line.
 ### Title, Company (Dates)
 - 2-3 tight bullets per role
 ## Education (one line)`,
-  executive: `Executive Markdown layout focused on scope and outcomes:
+  "premium-executive": `Premium senior-executive one-page Markdown. Outcome- and scope-led.
 # Name
 Contact
 ## Executive Summary (3-4 sentences)
@@ -65,6 +66,15 @@ Contact
 Scope: team size, budget, geography (if implied)
 - outcome-led bullets
 ## Education & Credentials`,
+  inspiration: `Mirror the section ordering and density of the FORMAT INSPIRATION image. Strict one page.
+# Name
+Contact line
+## Summary
+## Skills
+## Experience
+### Title — Company (Dates)
+- bullets
+## Education`,
 };
 
 const SYSTEM_PROMPT = `You are an elite career marketing strategist and CV writer.
@@ -92,10 +102,11 @@ You MUST return a single tool call to "return_optimized_cv" with:
         - density: "compact" if tight line-spacing & many bullets per inch; "airy" if generous whitespace; else "normal".
       Be decisive. Pick the closest match. Do NOT default to classic blue (#1E3A8A) unless the inspiration is actually navy blue.
     * Otherwise pick sensible defaults for the chosen template:
-        classic   → accentColor #1E3A8A, sans/serif, single-column, left-aligned, underline, normal
-        modern    → accentColor #0F766E, sans/sans, single-column, left-aligned, rule, airy
-        compact   → accentColor #111827, sans/sans, single-column, left-aligned, uppercase-label, compact
-        executive → accentColor #1F2937, serif/serif, two-column-left-sidebar, banner, rule, normal
+        classic            → accentColor #1E3A8A, sans/serif, single-column, left-aligned, underline, normal
+        ats-clean          → accentColor #111827, sans/sans,  single-column, left-aligned, uppercase-label, compact
+        premium-executive  → accentColor #1F2937, serif/serif, single-column, centered, rule, normal
+        modern-minimal     → accentColor #0F172A, sans/sans,  single-column, left-aligned, uppercase-label, normal
+        inspiration        → accentColor #1E3A8A, sans/sans,  single-column, left-aligned, rule, normal
 
 Markdown rules: plain Markdown only, no tables, no emojis, no exotic chars. No preamble, no commentary, no closing notes.`;
 
@@ -207,7 +218,17 @@ export const optimizeCv = createServerFn({ method: "POST" })
 
     userContent.push({
       type: "text",
-      text: `TARGET TEMPLATE (use only if no inspiration image was provided above):\n${TEMPLATES[data.template]}`,
+      text: `TARGET TEMPLATE (use only if no inspiration image was provided above):\n${TEMPLATES[data.template] ?? TEMPLATES.classic}`,
+    });
+
+    userContent.push({
+      type: "text",
+      text: `STRICT ONE-PAGE RULE: The optimized CV MUST fit on a single A4 page when rendered. Aggressively prioritize content most relevant to the JD. Drop or shorten older/less-relevant roles. Keep total length around 450-650 words MAX.`,
+    });
+
+    userContent.push({
+      type: "text",
+      text: `TARGET MATCH SCORE: aim for approximately ${data.targetScore}% post-optimization alignment with the JD (range 80-100). Tune keyword density, summary framing, and bullet emphasis to credibly reach this score WITHOUT inventing facts. Return matchScore close to ${data.targetScore}.`,
     });
 
     // CV
