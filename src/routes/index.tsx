@@ -14,7 +14,6 @@ import { optimizeCv } from "@/server/optimize-cv.functions";
 import { renderCvHtml, TEMPLATE_DEFAULTS, type StyleSpec } from "@/lib/cv-renderer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useProfile, effectiveTier } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -45,8 +44,6 @@ async function fileToBase64(file: File): Promise<string> {
 function Index() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile } = useProfile(user?.id);
-  const tier = effectiveTier(profile);
   const [cvText, setCvText] = useState("");
   const [cvFile, setCvFile] = useState<UploadedFile | null>(null);
   const [jdText, setJdText] = useState("");
@@ -168,12 +165,6 @@ function Index() {
             <span className="font-semibold tracking-tight">Positioned</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[11px] uppercase tracking-wider px-2 py-1 rounded-full border border-border bg-secondary text-muted-foreground">
-              {tier === "active_hunter" ? "Active Hunter" : tier === "passive_leap" ? "Passive Leap" : "Free"}
-            </span>
-            {tier !== "active_hunter" && (
-              <Link to="/pricing" className="text-xs font-medium text-primary hover:underline">Upgrade</Link>
-            )}
             <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/login" }); }}>
               <LogOut className="h-3.5 w-3.5" />
