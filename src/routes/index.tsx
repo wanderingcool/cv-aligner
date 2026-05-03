@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { redirect, Link, useNavigate } from "@tanstack/react-router";
+import { redirect, useNavigate } from "@tanstack/react-router";
 import {
   Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap, LogOut,
   Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb,
