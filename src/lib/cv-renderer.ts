@@ -191,4 +191,8 @@ export const TEMPLATE_DEFAULTS: Record<string, StyleSpec> = {
   modern:    { accentColor: "#0F766E", headingFont: "sans",  bodyFont: "sans",  layout: "single-column",            headerStyle: "left-aligned", sectionDivider: "rule",             density: "airy" },
   compact:   { accentColor: "#111827", headingFont: "sans",  bodyFont: "sans",  layout: "single-column",            headerStyle: "left-aligned", sectionDivider: "uppercase-label",  density: "compact" },
   executive: { accentColor: "#1F2937", headingFont: "serif", bodyFont: "serif", layout: "two-column-left-sidebar",  headerStyle: "banner",       sectionDivider: "rule",             density: "normal" },
+  "ats-clean":         { accentColor: "#111827", headingFont: "sans",  bodyFont: "sans",  layout: "single-column",           headerStyle: "left-aligned", sectionDivider: "uppercase-label", density: "compact" },
+  "premium-executive": { accentColor: "#1F2937", headingFont: "serif", bodyFont: "serif", layout: "single-column",           headerStyle: "centered",     sectionDivider: "rule",            density: "normal" },
+  "modern-minimal":    { accentColor: "#0F172A", headingFont: "sans",  bodyFont: "sans",  layout: "single-column",           headerStyle: "left-aligned", sectionDivider: "uppercase-label", density: "normal" },
+  inspiration:         { accentColor: "#1E3A8A", headingFont: "sans",  bodyFont: "sans",  layout: "single-column",           headerStyle: "left-aligned", sectionDivider: "rule",            density: "normal" },
 };
