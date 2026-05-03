@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { redirect, useNavigate } from "@tanstack/react-router";
 import {
   Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap, LogOut,
@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { optimizeCv } from "@/server/optimize-cv.functions";
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/")({
 });
 
 type UploadedFile = { name: string; mimeType: string; base64: string; size: number };
-type Template = "classic" | "modern" | "compact" | "executive";
+type Template = "classic" | "ats-clean" | "premium-executive" | "modern-minimal" | "inspiration";
 
 const ACCEPT_DOC = ".pdf,.txt,.md,application/pdf,text/plain,text/markdown";
 const ACCEPT_IMG = "image/png,image/jpeg,image/webp";
@@ -49,6 +50,7 @@ function Index() {
   const [jdText, setJdText] = useState("");
   const [jdFile, setJdFile] = useState<UploadedFile | null>(null);
   const [template, setTemplate] = useState<Template>("classic");
+  const [targetScore, setTargetScore] = useState<number>(90);
   const [inspiration, setInspiration] = useState<UploadedFile | null>(null);
 
   const [result, setResult] = useState<null | {
@@ -92,6 +94,7 @@ function Index() {
           jdText: jdText.trim() ? jdText : undefined,
           jdFile: jdFile ? { name: jdFile.name, mimeType: jdFile.mimeType, base64: jdFile.base64 } : undefined,
           template,
+          targetScore,
           inspirationImage: inspiration ? { name: inspiration.name, mimeType: inspiration.mimeType, base64: inspiration.base64 } : undefined,
         },
       });
@@ -211,11 +214,20 @@ function Index() {
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="classic">Classic — clean professional</SelectItem>
-                <SelectItem value="modern">Modern — minimalist with summary</SelectItem>
-                <SelectItem value="compact">Compact — one-page tight</SelectItem>
-                <SelectItem value="executive">Executive — scope & outcomes</SelectItem>
+                <SelectItem value="ats-clean">ATS Clean — recruiter-friendly one-page</SelectItem>
+                <SelectItem value="premium-executive">Premium Executive — polished senior one-page</SelectItem>
+                <SelectItem value="modern-minimal">Modern Minimal — clean modern one-page</SelectItem>
+                <SelectItem value="inspiration">Inspiration Design — mirror your upload</SelectItem>
               </SelectContent>
             </Select>
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="font-medium">Target match score</span>
+                <span className="text-muted-foreground tabular-nums">{targetScore}%</span>
+              </div>
+              <Slider value={[targetScore]} min={80} max={100} step={1} onValueChange={(v) => setTargetScore(v[0] ?? 90)} />
+              <div className="text-[11px] text-muted-foreground mt-1">Tune how aggressively we optimize toward the JD (80–100%).</div>
+            </div>
           </div>
 
           <InspirationPanel file={inspiration} onFile={(f) => handleFile(f, setInspiration, "img")} onClear={() => setInspiration(null)} />
@@ -240,35 +252,15 @@ function Index() {
         {result ? (
           <div className="space-y-4">
             <AnalysisCard result={result} />
-            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-sm font-medium">Aligned CV</span>
-                  <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
-                    {result.usedInspiration ? "Inspired by your screenshot" : labelForTemplate(template)}
-                    <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: effectiveStyle().accentColor }} />
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handleCopy}>
-                    {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
-                    {copied ? "Copied" : "Copy"}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleDownloadHtml}>
-                    <Download className="h-4 w-4 mr-1.5" />HTML
-                  </Button>
-                  <Button size="sm" onClick={handleExportPdf}>
-                    <Download className="h-4 w-4 mr-1.5" />Export PDF
-                  </Button>
-                </div>
-              </div>
-              <iframe
-                title="CV preview"
-                srcDoc={buildStyledHtml()}
-                className="w-full h-[80vh] bg-white border-0"
-              />
-            </div>
+            <A4Preview
+              html={buildStyledHtml()}
+              accent={effectiveStyle().accentColor}
+              templateLabel={result.usedInspiration ? "Inspired by your screenshot" : labelForTemplate(template)}
+              copied={copied}
+              onCopy={handleCopy}
+              onDownloadHtml={handleDownloadHtml}
+              onExportPdf={handleExportPdf}
+            />
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-6 py-10 text-center text-sm text-muted-foreground">
@@ -285,7 +277,86 @@ function Index() {
 }
 
 function labelForTemplate(t: Template) {
-  return ({ classic: "Classic", modern: "Modern", compact: "Compact", executive: "Executive" })[t];
+  return ({
+    classic: "Classic",
+    "ats-clean": "ATS Clean",
+    "premium-executive": "Premium Executive",
+    "modern-minimal": "Modern Minimal",
+    inspiration: "Inspiration Design",
+  } as const)[t];
+}
+
+function A4Preview({
+  html, accent, templateLabel, copied, onCopy, onDownloadHtml, onExportPdf,
+}: {
+  html: string; accent: string; templateLabel: string; copied: boolean;
+  onCopy: () => void; onDownloadHtml: () => void; onExportPdf: () => void;
+}) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [overflow, setOverflow] = useState(false);
+
+  // A4 aspect ratio: 210mm x 297mm = 1 : 1.4142
+  useEffect(() => {
+    const check = () => {
+      const win = iframeRef.current?.contentWindow;
+      const doc = iframeRef.current?.contentDocument;
+      if (!win || !doc?.body) return;
+      // Match the printed A4 page height in CSS pixels at 96dpi: 297mm ≈ 1122px.
+      const pageHeightPx = 1122;
+      const contentHeight = doc.body.scrollHeight;
+      setOverflow(contentHeight > pageHeightPx + 8);
+    };
+    const t = setTimeout(check, 250);
+    return () => clearTimeout(t);
+  }, [html]);
+
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-primary" />
+          <span className="text-sm font-medium">Aligned CV</span>
+          <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
+            {templateLabel}
+            <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: accent }} />
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onCopy}>
+            {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onDownloadHtml}>
+            <Download className="h-4 w-4 mr-1.5" />HTML
+          </Button>
+          <Button size="sm" onClick={onExportPdf}>
+            <Download className="h-4 w-4 mr-1.5" />Export PDF
+          </Button>
+        </div>
+      </div>
+
+      {overflow && (
+        <div className="px-5 py-2.5 border-b border-amber-500/30 bg-amber-500/10 text-amber-800 text-xs flex items-center gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Your CV is exceeding one page. Please shorten content or use a more compact format.
+        </div>
+      )}
+
+      <div className="bg-secondary/40 p-6 flex justify-center">
+        <div
+          className="bg-white shadow-md ring-1 ring-border overflow-hidden"
+          style={{ width: "min(100%, 794px)", aspectRatio: "210 / 297" }}
+        >
+          <iframe
+            ref={iframeRef}
+            title="CV preview"
+            srcDoc={html}
+            className="w-full h-full border-0 bg-white"
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function InputPanel({
