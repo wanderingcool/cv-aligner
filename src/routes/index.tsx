@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { redirect, useNavigate } from "@tanstack/react-router";
 import {
   Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap, LogOut,
-  Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb,
+  Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +61,11 @@ function Index() {
   }>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [autoFit, setAutoFit] = useState(false);
+  const autoFitPending = useRef(false);
+
+  // Reset auto-fit whenever a new optimization result arrives.
+  useEffect(() => { setAutoFit(false); }, [result?.markdown]);
 
   const cvHasContent = cvText.trim().length >= 30 || !!cvFile;
   const jdHasContent = jdText.trim().length >= 30 || !!jdFile;
@@ -130,12 +135,35 @@ function Index() {
   const effectiveStyle = (): StyleSpec => {
     // If THIS result was generated from an inspiration image, lock its
     // AI-derived styleSpec — even if the user later clears the upload.
-    if (result?.styleSpec && result.usedInspiration) return result.styleSpec;
-    return TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic;
+    const base = (result?.styleSpec && result.usedInspiration)
+      ? result.styleSpec
+      : (TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic);
+    if (!autoFit) return base;
+    return { ...base, density: "compact", sectionDivider: base.sectionDivider === "none" ? "uppercase-label" : base.sectionDivider };
+  };
+
+  const displayMarkdown = () => {
+    if (!result) return "";
+    return autoFit ? compactMarkdown(result.markdown) : result.markdown;
   };
 
   const buildStyledHtml = () =>
-    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV", watermark: !!result.watermarked }) : "";
+    result ? renderCvHtml(displayMarkdown(), effectiveStyle(), { titleHint: "Optimized CV", watermark: !!result.watermarked }) : "";
+
+  const handleAutoFit = () => {
+    autoFitPending.current = true;
+    setAutoFit(true);
+  };
+
+  const handleMeasured = (overflow: boolean) => {
+    if (!autoFitPending.current) return;
+    autoFitPending.current = false;
+    if (overflow) {
+      toast.error("Your CV still exceeds one page. Please remove or shorten some content.");
+    } else {
+      toast.success("Your CV now fits one page.");
+    }
+  };
 
   const handleExportPdf = () => {
     if (!result) return;
@@ -260,6 +288,9 @@ function Index() {
               onCopy={handleCopy}
               onDownloadHtml={handleDownloadHtml}
               onExportPdf={handleExportPdf}
+              onAutoFit={handleAutoFit}
+              autoFit={autoFit}
+              onMeasured={handleMeasured}
             />
           </div>
         ) : (
