@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { redirect, useNavigate } from "@tanstack/react-router";
 import {
   Sparkles, Copy, Download, Check, Wand2, ShieldCheck, Zap, LogOut,
-  Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb,
+  Upload, FileText, X, Image as ImageIcon, TrendingUp, AlertTriangle, Lightbulb, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +61,11 @@ function Index() {
   }>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [autoFit, setAutoFit] = useState(false);
+  const autoFitPending = useRef(false);
+
+  // Reset auto-fit whenever a new optimization result arrives.
+  useEffect(() => { setAutoFit(false); }, [result?.markdown]);
 
   const cvHasContent = cvText.trim().length >= 30 || !!cvFile;
   const jdHasContent = jdText.trim().length >= 30 || !!jdFile;
@@ -130,12 +135,35 @@ function Index() {
   const effectiveStyle = (): StyleSpec => {
     // If THIS result was generated from an inspiration image, lock its
     // AI-derived styleSpec — even if the user later clears the upload.
-    if (result?.styleSpec && result.usedInspiration) return result.styleSpec;
-    return TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic;
+    const base = (result?.styleSpec && result.usedInspiration)
+      ? result.styleSpec
+      : (TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic);
+    if (!autoFit) return base;
+    return { ...base, density: "compact", sectionDivider: base.sectionDivider === "none" ? "uppercase-label" : base.sectionDivider };
+  };
+
+  const displayMarkdown = () => {
+    if (!result) return "";
+    return autoFit ? compactMarkdown(result.markdown) : result.markdown;
   };
 
   const buildStyledHtml = () =>
-    result ? renderCvHtml(result.markdown, effectiveStyle(), { titleHint: "Optimized CV", watermark: !!result.watermarked }) : "";
+    result ? renderCvHtml(displayMarkdown(), effectiveStyle(), { titleHint: "Optimized CV", watermark: !!result.watermarked }) : "";
+
+  const handleAutoFit = () => {
+    autoFitPending.current = true;
+    setAutoFit(true);
+  };
+
+  const handleMeasured = (overflow: boolean) => {
+    if (!autoFitPending.current) return;
+    autoFitPending.current = false;
+    if (overflow) {
+      toast.error("Your CV still exceeds one page. Please remove or shorten some content.");
+    } else {
+      toast.success("Your CV now fits one page.");
+    }
+  };
 
   const handleExportPdf = () => {
     if (!result) return;
@@ -260,6 +288,9 @@ function Index() {
               onCopy={handleCopy}
               onDownloadHtml={handleDownloadHtml}
               onExportPdf={handleExportPdf}
+              onAutoFit={handleAutoFit}
+              autoFit={autoFit}
+              onMeasured={handleMeasured}
             />
           </div>
         ) : (
@@ -286,11 +317,70 @@ function labelForTemplate(t: Template) {
   } as const)[t];
 }
 
+// Compact the AI-produced markdown to help it fit one page:
+// - trim summary paragraph to ~3 sentences
+// - cap bullet lists under job-like (### ...) headings to top 4
+// - drop low-priority optional sections entirely
+function compactMarkdown(md: string): string {
+  const LOW_PRIORITY = /^(interests|hobbies|references|volunteer|volunteering|awards|publications|languages)\b/i;
+  const lines = md.replace(/\r\n?/g, "\n").split("\n");
+  const out: string[] = [];
+  let i = 0;
+  let lastHeading: "h1" | "h2" | "h3" | null = null;
+  let currentH2Skip = false;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.startsWith("## ")) {
+      const title = line.slice(3).trim();
+      currentH2Skip = LOW_PRIORITY.test(title);
+      if (!currentH2Skip) { out.push(line); lastHeading = "h2"; }
+      i++; continue;
+    }
+    if (currentH2Skip) { i++; continue; }
+
+    if (line.startsWith("# ")) { out.push(line); lastHeading = "h1"; i++; continue; }
+    if (line.startsWith("### ")) { out.push(line); lastHeading = "h3"; i++; continue; }
+
+    // Bullet list block
+    if (/^[-*]\s+/.test(line)) {
+      const bullets: string[] = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i])) { bullets.push(lines[i]); i++; }
+      const cap = lastHeading === "h3" ? 4 : 6;
+      out.push(...bullets.slice(0, cap));
+      continue;
+    }
+
+    // Paragraph block — if directly under an h2 like Summary/Profile, trim to ~3 sentences
+    if (line.trim()) {
+      const para: string[] = [line];
+      i++;
+      while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|[-*]\s|>\s)/.test(lines[i])) {
+        para.push(lines[i]); i++;
+      }
+      let text = para.join(" ").replace(/\s+/g, " ").trim();
+      if (lastHeading === "h2" || lastHeading === "h1") {
+        const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g);
+        if (sentences && sentences.length > 3) text = sentences.slice(0, 3).join("").trim();
+      }
+      out.push(text);
+      continue;
+    }
+
+    out.push(line);
+    i++;
+  }
+  return out.join("\n");
+}
+
 function A4Preview({
   html, accent, templateLabel, copied, onCopy, onDownloadHtml, onExportPdf,
+  onAutoFit, autoFit, onMeasured,
 }: {
   html: string; accent: string; templateLabel: string; copied: boolean;
   onCopy: () => void; onDownloadHtml: () => void; onExportPdf: () => void;
+  onAutoFit: () => void; autoFit: boolean; onMeasured: (overflow: boolean) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -304,11 +394,13 @@ function A4Preview({
       // Match the printed A4 page height in CSS pixels at 96dpi: 297mm ≈ 1122px.
       const pageHeightPx = 1122;
       const contentHeight = doc.body.scrollHeight;
-      setOverflow(contentHeight > pageHeightPx + 8);
+      const isOver = contentHeight > pageHeightPx + 8;
+      setOverflow(isOver);
+      onMeasured(isOver);
     };
     const t = setTimeout(check, 250);
     return () => clearTimeout(t);
-  }, [html]);
+  }, [html, onMeasured]);
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -322,6 +414,10 @@ function A4Preview({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant={autoFit ? "default" : "outline"} size="sm" onClick={onAutoFit} disabled={autoFit}>
+            <Minimize2 className="h-4 w-4 mr-1.5" />
+            {autoFit ? "Auto-fitted" : "Auto-fit to one page"}
+          </Button>
           <Button variant="outline" size="sm" onClick={onCopy}>
             {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
             {copied ? "Copied" : "Copy"}
