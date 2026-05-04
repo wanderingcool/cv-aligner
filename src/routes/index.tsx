@@ -317,6 +317,63 @@ function labelForTemplate(t: Template) {
   } as const)[t];
 }
 
+// Compact the AI-produced markdown to help it fit one page:
+// - trim summary paragraph to ~3 sentences
+// - cap bullet lists under job-like (### ...) headings to top 4
+// - drop low-priority optional sections entirely
+function compactMarkdown(md: string): string {
+  const LOW_PRIORITY = /^(interests|hobbies|references|volunteer|volunteering|awards|publications|languages)\b/i;
+  const lines = md.replace(/\r\n?/g, "\n").split("\n");
+  const out: string[] = [];
+  let i = 0;
+  let lastHeading: "h1" | "h2" | "h3" | null = null;
+  let currentH2Skip = false;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.startsWith("## ")) {
+      const title = line.slice(3).trim();
+      currentH2Skip = LOW_PRIORITY.test(title);
+      if (!currentH2Skip) { out.push(line); lastHeading = "h2"; }
+      i++; continue;
+    }
+    if (currentH2Skip) { i++; continue; }
+
+    if (line.startsWith("# ")) { out.push(line); lastHeading = "h1"; i++; continue; }
+    if (line.startsWith("### ")) { out.push(line); lastHeading = "h3"; i++; continue; }
+
+    // Bullet list block
+    if (/^[-*]\s+/.test(line)) {
+      const bullets: string[] = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i])) { bullets.push(lines[i]); i++; }
+      const cap = lastHeading === "h3" ? 4 : 6;
+      out.push(...bullets.slice(0, cap));
+      continue;
+    }
+
+    // Paragraph block — if directly under an h2 like Summary/Profile, trim to ~3 sentences
+    if (line.trim()) {
+      const para: string[] = [line];
+      i++;
+      while (i < lines.length && lines[i].trim() && !/^(#{1,3}\s|[-*]\s|>\s)/.test(lines[i])) {
+        para.push(lines[i]); i++;
+      }
+      let text = para.join(" ").replace(/\s+/g, " ").trim();
+      if (lastHeading === "h2" || lastHeading === "h1") {
+        const sentences = text.match(/[^.!?]+[.!?]+(\s|$)/g);
+        if (sentences && sentences.length > 3) text = sentences.slice(0, 3).join("").trim();
+      }
+      out.push(text);
+      continue;
+    }
+
+    out.push(line);
+    i++;
+  }
+  return out.join("\n");
+}
+
 function A4Preview({
   html, accent, templateLabel, copied, onCopy, onDownloadHtml, onExportPdf,
   onAutoFit, autoFit, onMeasured,
