@@ -319,9 +319,11 @@ function labelForTemplate(t: Template) {
 
 function A4Preview({
   html, accent, templateLabel, copied, onCopy, onDownloadHtml, onExportPdf,
+  onAutoFit, autoFit, onMeasured,
 }: {
   html: string; accent: string; templateLabel: string; copied: boolean;
   onCopy: () => void; onDownloadHtml: () => void; onExportPdf: () => void;
+  onAutoFit: () => void; autoFit: boolean; onMeasured: (overflow: boolean) => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -335,11 +337,13 @@ function A4Preview({
       // Match the printed A4 page height in CSS pixels at 96dpi: 297mm ≈ 1122px.
       const pageHeightPx = 1122;
       const contentHeight = doc.body.scrollHeight;
-      setOverflow(contentHeight > pageHeightPx + 8);
+      const isOver = contentHeight > pageHeightPx + 8;
+      setOverflow(isOver);
+      onMeasured(isOver);
     };
     const t = setTimeout(check, 250);
     return () => clearTimeout(t);
-  }, [html]);
+  }, [html, onMeasured]);
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
@@ -353,6 +357,10 @@ function A4Preview({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant={autoFit ? "default" : "outline"} size="sm" onClick={onAutoFit} disabled={autoFit}>
+            <Minimize2 className="h-4 w-4 mr-1.5" />
+            {autoFit ? "Auto-fitted" : "Auto-fit to one page"}
+          </Button>
           <Button variant="outline" size="sm" onClick={onCopy}>
             {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
             {copied ? "Copied" : "Copy"}
