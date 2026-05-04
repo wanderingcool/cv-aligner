@@ -64,7 +64,6 @@ function Index() {
   const [autoFit, setAutoFit] = useState(false);
   const autoFitPending = useRef(false);
 
-  // Reset auto-fit whenever a new optimization result arrives.
   useEffect(() => { setAutoFit(false); }, [result?.markdown]);
 
   const cvHasContent = cvText.trim().length >= 30 || !!cvFile;
@@ -128,13 +127,7 @@ function Index() {
     setTimeout(() => setCopied(false), 1800);
   };
 
-  // The downloadable CV's visual design is driven by:
-  //   1) AI-derived styleSpec if a format-inspiration image was uploaded for THIS run
-  //   2) Otherwise the currently selected template (live — changing the dropdown
-  //      updates the preview immediately, no re-optimization needed).
   const effectiveStyle = (): StyleSpec => {
-    // If THIS result was generated from an inspiration image, lock its
-    // AI-derived styleSpec — even if the user later clears the upload.
     const base = (result?.styleSpec && result.usedInspiration)
       ? result.styleSpec
       : (TEMPLATE_DEFAULTS[template] ?? TEMPLATE_DEFAULTS.classic);
@@ -187,33 +180,80 @@ function Index() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Toaster richColors position="top-center" />
-      <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
+
+      {/* Header */}
+      <header className="border-b border-border bg-background/90 backdrop-blur-md sticky top-0 z-10">
         <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
+          <div className="flex items-center gap-2.5">
+            <div
+              className="h-8 w-8 rounded-lg flex items-center justify-center shadow-sm"
+              style={{ background: "linear-gradient(135deg, oklch(0.51 0.24 270), oklch(0.48 0.26 285))" }}
+            >
+              <Sparkles className="h-4 w-4 text-white" />
             </div>
-            <span className="font-semibold tracking-tight">Positioned</span>
+            <span className="font-bold tracking-tight">Positioned</span>
+            <span
+              className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider"
+              style={{ background: "oklch(0.95 0.03 270)", color: "oklch(0.45 0.18 270)", border: "1px solid oklch(0.88 0.06 270)" }}
+            >
+              Beta
+            </span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
-            <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/login" }); }}>
+          <div className="flex items-center gap-2">
+            {user?.email && (
+              <span
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{ background: "oklch(0.95 0.03 270)", color: "oklch(0.40 0.14 270)", border: "1px solid oklch(0.88 0.06 270)" }}
+              >
+                {user.email}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/login" }); }}
+            >
               <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-4xl px-6 pt-14 pb-8 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1 text-xs text-muted-foreground mb-5">
-          <Zap className="h-3 w-3" /> 10-second AI alignment
+      {/* Hero */}
+      <section className="mx-auto max-w-4xl px-6 pt-14 pb-10 text-center">
+        <div
+          className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium mb-6"
+          style={{ background: "oklch(0.95 0.03 270)", color: "oklch(0.45 0.18 270)", border: "1px solid oklch(0.88 0.06 270)" }}
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "oklch(0.55 0.22 270)" }} />
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "oklch(0.51 0.24 270)" }} />
+          </span>
+          10-second AI alignment
         </div>
-        <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight">Stop applying. Start aligning.</h1>
-        <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.1]">
+          Stop applying.{" "}
+          <span
+            className="bg-clip-text text-transparent"
+            style={{ backgroundImage: "linear-gradient(135deg, oklch(0.51 0.24 270), oklch(0.55 0.28 295))" }}
+          >
+            Start aligning.
+          </span>
+        </h1>
+        <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
           Generate a job-winning, customized CV in 10 seconds — engineered to match the exact role you're targeting.
         </p>
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5"><Zap className="h-3 w-3 text-primary" />10s average</span>
+          <span className="h-3 w-px bg-border" />
+          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3 w-3 text-primary" />ATS-ready</span>
+          <span className="h-3 w-px bg-border" />
+          <span className="flex items-center gap-1.5"><Sparkles className="h-3 w-3 text-primary" />4 templates</span>
+        </div>
       </section>
 
+      {/* Input section */}
       <section className="mx-auto max-w-6xl px-6 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputPanel
@@ -235,9 +275,9 @@ function Index() {
         </div>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="text-sm font-medium mb-1">Output format</div>
-            <div className="text-xs text-muted-foreground mb-3">Drives the design of the downloadable CV. Updates the preview live.</div>
+          {/* Output format card */}
+          <div className="rounded-2xl border border-border bg-card p-5 ring-1 ring-border/40 shadow-sm">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Output Format</div>
             <Select value={template} onValueChange={(v) => setTemplate(v as Template)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -248,34 +288,57 @@ function Index() {
                 <SelectItem value="inspiration">Inspiration Design — mirror your upload</SelectItem>
               </SelectContent>
             </Select>
-            <div className="mt-4">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-medium">Target match score</span>
-                <span className="text-muted-foreground tabular-nums">{targetScore}%</span>
+            <div className="mt-5">
+              <div className="flex items-center justify-between text-xs mb-2.5">
+                <span className="font-medium text-foreground">Target match score</span>
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs font-bold tabular-nums"
+                  style={{ background: "oklch(0.95 0.03 270)", color: "oklch(0.45 0.18 270)" }}
+                >
+                  {targetScore}%
+                </span>
               </div>
               <Slider value={[targetScore]} min={80} max={100} step={1} onValueChange={(v) => setTargetScore(v[0] ?? 90)} />
-              <div className="text-[11px] text-muted-foreground mt-1">Tune how aggressively we optimize toward the JD (80–100%).</div>
+              <div className="text-[11px] text-muted-foreground mt-2">Tune how aggressively we optimize toward the JD (80–100%).</div>
             </div>
           </div>
 
           <InspirationPanel file={inspiration} onFile={(f) => handleFile(f, setInspiration, "img")} onClear={() => setInspiration(null)} />
         </div>
 
+        {/* CTA row */}
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-4 w-4" />
+            <ShieldCheck className="h-4 w-4 text-primary/60" />
             Your content is processed securely and only used to generate your CV.
           </div>
-          <Button size="lg" onClick={handleOptimize} disabled={!canSubmit} className="min-w-[260px] h-12 text-base font-medium shadow-sm">
+          <Button
+            size="lg"
+            onClick={handleOptimize}
+            disabled={!canSubmit}
+            className="min-w-[260px] h-13 text-base font-semibold shadow-lg gap-2.5 border-0"
+            style={{
+              background: canSubmit
+                ? "linear-gradient(135deg, oklch(0.51 0.24 270), oklch(0.48 0.26 285))"
+                : undefined,
+            }}
+          >
             {loading ? (
-              <><span className="mr-2 inline-block h-3 w-3 rounded-full bg-primary-foreground/80 animate-pulse" />Conducting Consumer Value Analysis…</>
+              <>
+                <span className="inline-block h-4 w-4 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
+                Conducting analysis…
+              </>
             ) : (
-              <><Wand2 className="mr-2 h-4 w-4" />Optimize my CV</>
+              <>
+                <Wand2 className="h-4 w-4" />
+                Optimize my CV
+              </>
             )}
           </Button>
         </div>
       </section>
 
+      {/* Output section */}
       <section id="output" className="mx-auto max-w-5xl px-6 pb-24">
         {result ? (
           <div className="space-y-4">
@@ -294,14 +357,22 @@ function Index() {
             />
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-6 py-10 text-center text-sm text-muted-foreground">
-            Your aligned CV and match analysis will appear here.
+          <div className="rounded-2xl border border-dashed border-border bg-secondary/20 px-6 py-14 text-center">
+            <div
+              className="mx-auto mb-4 h-12 w-12 rounded-2xl flex items-center justify-center"
+              style={{ background: "oklch(0.95 0.03 270)" }}
+            >
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-sm font-medium text-foreground">Your aligned CV will appear here</p>
+            <p className="text-xs text-muted-foreground mt-1">Paste your CV and job description above, then click "Optimize my CV"</p>
           </div>
         )}
       </section>
 
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Positioned
+      <footer className="border-t border-border py-6 text-center">
+        <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Positioned</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Engineered for job seekers who move fast.</p>
       </footer>
     </div>
   );
@@ -317,10 +388,6 @@ function labelForTemplate(t: Template) {
   } as const)[t];
 }
 
-// Compact the AI-produced markdown to help it fit one page:
-// - trim summary paragraph to ~3 sentences
-// - cap bullet lists under job-like (### ...) headings to top 4
-// - drop low-priority optional sections entirely
 function compactMarkdown(md: string): string {
   const LOW_PRIORITY = /^(interests|hobbies|references|volunteer|volunteering|awards|publications|languages)\b/i;
   const lines = md.replace(/\r\n?/g, "\n").split("\n");
@@ -331,7 +398,6 @@ function compactMarkdown(md: string): string {
 
   while (i < lines.length) {
     const line = lines[i];
-
     if (line.startsWith("## ")) {
       const title = line.slice(3).trim();
       currentH2Skip = LOW_PRIORITY.test(title);
@@ -339,11 +405,8 @@ function compactMarkdown(md: string): string {
       i++; continue;
     }
     if (currentH2Skip) { i++; continue; }
-
     if (line.startsWith("# ")) { out.push(line); lastHeading = "h1"; i++; continue; }
     if (line.startsWith("### ")) { out.push(line); lastHeading = "h3"; i++; continue; }
-
-    // Bullet list block
     if (/^[-*]\s+/.test(line)) {
       const bullets: string[] = [];
       while (i < lines.length && /^[-*]\s+/.test(lines[i])) { bullets.push(lines[i]); i++; }
@@ -351,8 +414,6 @@ function compactMarkdown(md: string): string {
       out.push(...bullets.slice(0, cap));
       continue;
     }
-
-    // Paragraph block — if directly under an h2 like Summary/Profile, trim to ~3 sentences
     if (line.trim()) {
       const para: string[] = [line];
       i++;
@@ -367,7 +428,6 @@ function compactMarkdown(md: string): string {
       out.push(text);
       continue;
     }
-
     out.push(line);
     i++;
   }
@@ -385,13 +445,11 @@ function A4Preview({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [overflow, setOverflow] = useState(false);
 
-  // A4 aspect ratio: 210mm x 297mm = 1 : 1.4142
   useEffect(() => {
     const check = () => {
       const win = iframeRef.current?.contentWindow;
       const doc = iframeRef.current?.contentDocument;
       if (!win || !doc?.body) return;
-      // Match the printed A4 page height in CSS pixels at 96dpi: 297mm ≈ 1122px.
       const pageHeightPx = 1122;
       const contentHeight = doc.body.scrollHeight;
       const isOver = contentHeight > pageHeightPx + 8;
@@ -403,44 +461,49 @@ function A4Preview({
   }, [html, onMeasured]);
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-primary" />
-          <span className="text-sm font-medium">Aligned CV</span>
-          <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1.5">
-            {templateLabel}
-            <span className="inline-block h-2.5 w-2.5 rounded-full border border-border" style={{ background: accent }} />
-          </span>
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-secondary/40">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="h-2.5 w-2.5 rounded-full ring-2"
+            style={{ background: accent, ringColor: `${accent}40` }}
+          />
+          <span className="text-sm font-semibold">Aligned CV</span>
+          <span className="text-xs text-muted-foreground ml-1">{templateLabel}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={autoFit ? "default" : "outline"} size="sm" onClick={onAutoFit} disabled={autoFit}>
-            <Minimize2 className="h-4 w-4 mr-1.5" />
+          <Button variant={autoFit ? "default" : "outline"} size="sm" onClick={onAutoFit} disabled={autoFit} className="text-xs">
+            <Minimize2 className="h-3.5 w-3.5 mr-1.5" />
             {autoFit ? "Auto-fitted" : "Auto-fit to one page"}
           </Button>
-          <Button variant="outline" size="sm" onClick={onCopy}>
-            {copied ? <Check className="h-4 w-4 mr-1.5" /> : <Copy className="h-4 w-4 mr-1.5" />}
+          <Button variant="outline" size="sm" onClick={onCopy} className="text-xs">
+            {copied ? <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
             {copied ? "Copied" : "Copy"}
           </Button>
-          <Button variant="outline" size="sm" onClick={onDownloadHtml}>
-            <Download className="h-4 w-4 mr-1.5" />HTML
+          <Button variant="outline" size="sm" onClick={onDownloadHtml} className="text-xs">
+            <Download className="h-3.5 w-3.5 mr-1.5" />HTML
           </Button>
-          <Button size="sm" onClick={onExportPdf}>
-            <Download className="h-4 w-4 mr-1.5" />Export PDF
+          <Button
+            size="sm"
+            onClick={onExportPdf}
+            className="text-xs shadow-sm"
+            style={{ background: "linear-gradient(135deg, oklch(0.51 0.24 270), oklch(0.48 0.26 285))" }}
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />Export PDF
           </Button>
         </div>
       </div>
 
       {overflow && (
-        <div className="px-5 py-2.5 border-b border-amber-500/30 bg-amber-500/10 text-amber-800 text-xs flex items-center gap-2">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        <div className="px-5 py-2.5 border-b border-amber-400/30 bg-amber-50 text-amber-800 text-xs flex items-center gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
           Your CV is exceeding one page. Please shorten content or use a more compact format.
         </div>
       )}
 
-      <div className="bg-secondary/40 p-6 flex justify-center">
+      <div className="bg-secondary/30 p-6 flex justify-center">
         <div
-          className="bg-white shadow-md ring-1 ring-border overflow-hidden"
+          className="bg-white shadow-lg ring-1 ring-border/50 overflow-hidden"
           style={{ width: "min(100%, 794px)", aspectRatio: "210 / 297" }}
         >
           <iframe
@@ -463,14 +526,25 @@ function InputPanel({
   onFile: (f: File | undefined) => void; onClearFile: () => void; accept: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const isReady = value.trim().length >= 30 || !!file;
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
-      <div className="px-4 py-3 border-b border-border flex items-start justify-between gap-3">
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+      <div
+        className="px-4 py-3 border-b border-border flex items-start justify-between gap-3"
+        style={{ background: "oklch(0.975 0.012 270)" }}
+      >
         <div>
-          <div className="text-sm font-medium">{label}</div>
+          <div className="text-sm font-semibold text-foreground">{label}</div>
           <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>
         </div>
-        <Button variant="outline" size="sm" type="button" onClick={() => ref.current?.click()}>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => ref.current?.click()}
+          className="shrink-0 text-xs"
+          style={{ borderColor: "oklch(0.88 0.06 270)", color: "oklch(0.45 0.18 270)" }}
+        >
           <Upload className="h-3.5 w-3.5 mr-1.5" />Upload
         </Button>
         <input ref={ref} type="file" accept={accept} className="hidden"
@@ -478,76 +552,126 @@ function InputPanel({
       </div>
 
       {file && (
-        <div className="px-4 py-2 border-b border-border bg-secondary/40 flex items-center justify-between text-xs">
+        <div className="px-4 py-2 border-b border-border bg-primary/5 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 min-w-0">
             <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="truncate">{file.name}</span>
+            <span className="truncate font-medium">{file.name}</span>
             <span className="text-muted-foreground shrink-0">· {(file.size / 1024).toFixed(0)} KB</span>
           </div>
-          <button onClick={onClearFile} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+          <button onClick={onClearFile} className="text-muted-foreground hover:text-foreground ml-2">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 
       <Textarea
-        value={value} onChange={(e) => onChange(e.target.value)} placeholder={file ? "Optional: add extra context here…" : placeholder}
-        className="min-h-[280px] rounded-none border-0 focus-visible:ring-0 resize-none font-mono text-[13px] leading-relaxed"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={file ? "Optional: add extra context here…" : placeholder}
+        className="min-h-[280px] rounded-none border-0 focus-visible:ring-0 resize-none font-mono text-sm leading-relaxed"
       />
-      <div className="px-4 py-2 border-t border-border text-[11px] text-muted-foreground flex justify-between">
-        <span>{value.trim().length} chars{file ? " + file" : ""}</span>
-        <span>{(value.trim().length >= 30 || file) ? "Ready" : "Add text or upload a file"}</span>
+      <div className="px-4 py-2 border-t border-border text-[11px] flex justify-between items-center bg-secondary/20">
+        <span className="text-muted-foreground">{value.trim().length} chars{file ? " + file" : ""}</span>
+        {isReady ? (
+          <span className="flex items-center gap-1 font-medium text-emerald-600">
+            <Check className="h-3 w-3" /> Ready
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Add text or upload a file</span>
+        )}
       </div>
     </div>
   );
 }
 
-function InspirationPanel({ file, onFile, onClear }: { file: UploadedFile | null; onFile: (f: File | undefined) => void; onClear: () => void }) {
+function InspirationPanel({ file, onFile, onClear }: {
+  file: UploadedFile | null; onFile: (f: File | undefined) => void; onClear: () => void;
+}) {
   const ref = useRef<HTMLInputElement>(null);
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-2xl border border-border bg-card p-5 ring-1 ring-border/40 shadow-sm">
+      <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Format Inspiration</div>
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-medium">Format inspiration <span className="text-xs font-normal text-muted-foreground">(optional)</span></div>
-          <div className="text-xs text-muted-foreground mt-0.5">Upload a screenshot of a CV layout you like — we'll mimic its structure.</div>
-        </div>
-        <Button variant="outline" size="sm" type="button" onClick={() => ref.current?.click()}>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Upload a screenshot of a CV layout you like — we'll mimic its structure.
+          <span className="ml-1 text-xs">(optional)</span>
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={() => ref.current?.click()}
+          className="shrink-0 text-xs"
+          style={{ borderColor: "oklch(0.88 0.06 270)", color: "oklch(0.45 0.18 270)" }}
+        >
           <ImageIcon className="h-3.5 w-3.5 mr-1.5" />Upload
         </Button>
         <input ref={ref} type="file" accept={ACCEPT_IMG} className="hidden"
           onChange={(e) => { onFile(e.target.files?.[0]); if (ref.current) ref.current.value = ""; }} />
       </div>
       {file && (
-        <div className="mt-3 flex items-center justify-between text-xs bg-secondary/40 border border-border rounded-md px-3 py-2">
+        <div className="mt-3 flex items-center justify-between text-xs bg-primary/5 border border-primary/15 rounded-lg px-3 py-2">
           <div className="flex items-center gap-2 min-w-0">
             <ImageIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="truncate">{file.name}</span>
+            <span className="truncate font-medium">{file.name}</span>
             <span className="text-muted-foreground shrink-0">· {(file.size / 1024).toFixed(0)} KB</span>
           </div>
-          <button onClick={onClear} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+          <button onClick={onClear} className="text-muted-foreground hover:text-foreground ml-2">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function AnalysisCard({ result }: { result: { matchScore: number; summary: string; strengths: string[]; missingKeywords: string[]; improvements: string[] } }) {
-  const score = Math.max(0, Math.min(100, Math.round(result.matchScore)));
-  const tone = score >= 80 ? "text-emerald-600" : score >= 60 ? "text-primary" : "text-amber-600";
+function ScoreRing({ score }: { score: number }) {
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (score / 100) * circumference;
+  const color = score >= 80 ? "oklch(0.59 0.18 155)" : score >= 60 ? "oklch(0.51 0.24 270)" : "oklch(0.72 0.18 60)";
+
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <div className="relative inline-flex items-center justify-center">
+      <svg width="108" height="108" viewBox="0 0 108 108" className="-rotate-90">
+        <circle cx="54" cy="54" r={radius} fill="none" stroke="currentColor" strokeWidth="8" className="text-secondary" />
+        <circle
+          cx="54" cy="54" r={radius} fill="none"
+          stroke={color} strokeWidth="8"
+          strokeDasharray={`${dash} ${circumference}`}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 0.8s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-extrabold leading-none" style={{ color }}>{score}</span>
+        <span className="text-xs text-muted-foreground font-medium">/ 100</span>
+      </div>
+    </div>
+  );
+}
+
+function AnalysisCard({ result }: {
+  result: { matchScore: number; summary: string; strengths: string[]; missingKeywords: string[]; improvements: string[] };
+}) {
+  const score = Math.max(0, Math.min(100, Math.round(result.matchScore)));
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-0 divide-y md:divide-y-0 md:divide-x divide-border">
-        <div className="p-5 flex flex-col items-center justify-center text-center">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+
+        {/* Score column */}
+        <div className="p-6 flex flex-col items-center justify-center text-center gap-3">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
             <TrendingUp className="h-3.5 w-3.5" /> Match Score
           </div>
-          <div className={`text-5xl font-semibold ${tone}`}>{score}<span className="text-2xl text-muted-foreground">%</span></div>
-          <div className="mt-3 w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-            <div className="h-full bg-primary transition-all" style={{ width: `${score}%` }} />
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground leading-relaxed">{result.summary}</p>
+          <ScoreRing score={score} />
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-[180px]">{result.summary}</p>
         </div>
 
-        <div className="p-5">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+        {/* Keywords column */}
+        <div className="p-6">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-1.5">
             <AlertTriangle className="h-3.5 w-3.5" /> Missing Keywords
           </div>
           {result.missingKeywords.length === 0 ? (
@@ -555,39 +679,55 @@ function AnalysisCard({ result }: { result: { matchScore: number; summary: strin
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {result.missingKeywords.map((k, i) => (
-                <span key={i} className="text-xs px-2 py-1 rounded-md bg-amber-500/10 text-amber-700 border border-amber-500/20">{k}</span>
+                <span
+                  key={i}
+                  className="text-xs px-2.5 py-1 rounded-full font-medium"
+                  style={{ background: "oklch(0.97 0.04 70)", color: "oklch(0.52 0.16 60)", border: "1px solid oklch(0.88 0.08 65)" }}
+                >
+                  {k}
+                </span>
               ))}
             </div>
           )}
           {result.strengths.length > 0 && (
-            <>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-5 mb-2">Strengths Aligned</div>
-              <ul className="space-y-1.5">
+            <div className="mt-5">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Strengths Aligned</div>
+              <ul className="space-y-2">
                 {result.strengths.map((s, i) => (
-                  <li key={i} className="text-xs flex gap-1.5 text-foreground"><Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" /><span>{s}</span></li>
+                  <li key={i} className="text-xs flex gap-2 text-foreground">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{s}</span>
+                  </li>
                 ))}
               </ul>
-            </>
+            </div>
           )}
         </div>
 
-        <div className="p-5">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
+        {/* Improvements column */}
+        <div className="p-6">
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-1.5">
             <Lightbulb className="h-3.5 w-3.5" /> Key Improvements
           </div>
           {result.improvements.length === 0 ? (
             <p className="text-xs text-muted-foreground">CV is already well aligned.</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {result.improvements.map((s, i) => (
-                <li key={i} className="text-xs flex gap-2 text-foreground">
-                  <span className="h-4 w-4 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                <li key={i} className="text-xs flex gap-2.5 text-foreground">
+                  <span
+                    className="h-5 w-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: "oklch(0.95 0.03 270)", color: "oklch(0.45 0.18 270)" }}
+                  >
+                    {i + 1}
+                  </span>
                   <span className="leading-relaxed">{s}</span>
                 </li>
               ))}
             </ul>
           )}
         </div>
+
       </div>
     </div>
   );
